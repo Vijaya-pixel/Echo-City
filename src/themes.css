@@ -1,0 +1,64 @@
+/*
+ * Echo City theme — a limited 16-bit-era palette (12 colors).
+ *
+ *   night   #0b1026  background (night-city navy)
+ *   panel   #151c3d  cards / panels
+ *   panel2  #1f2a5a  muted surfaces
+ *   line    #36428a  borders
+ *   ink     #eef1ff  text
+ *   dim     #a9b2de  secondary text (AA on night + panel)
+ *   gold    #ffcc33  hero / primary
+ *   crimson #ff4560  villain / destructive (dark text on it for AA)
+ *   cyan    #3ee6ff  detective
+ *   lime    #8cff5a  success
+ *   magenta #ff3ea5  synthwave accent
+ *   black   #05060f  hard shadows
+ *
+ * Extra tokens (hero, villain, detective, neon…) are declared in @theme so
+ * Tailwind generates utilities like `bg-villain` / `text-detective`.
+ */
+
+@theme {
+  --color-hero: #ffcc33;
+  --color-hero-foreground: #0b1026;
+  --color-villain: #ff4560;
+  --color-villain-foreground: #0b1026;
+  --color-detective: #3ee6ff;
+  --color-detective-foreground: #0b1026;
+  --color-lime: #8cff5a;
+  --color-lime-foreground: #0b1026;
+  --color-magenta: #ff3ea5;
+  --color-neon: #ff2a3d;
+  --color-shadow: #05060f;
+  --color-panel2: #1f2a5a;
+  --font-display: 'Press Start 2P', ui-monospace, monospace;
+  --font-pixel: 'VT323', ui-monospace, monospace;
+}
+
+[data-theme="echo"] {
+  color-scheme: dark;
+  --color-background: #0b1026;
+  --color-foreground: #eef1ff;
+  --color-card: #151c3d;
+  --color-card-foreground: #eef1ff;
+  --color-popover: #151c3d;
+  --color-popover-foreground: #eef1ff;
+  --color-primary: #ffcc33;
+  --color-primary-foreground: #0b1026;
+  --color-secondary: #1f2a5a;
+  --color-secondary-foreground: #eef1ff;
+  --color-muted: #1f2a5a;
+  --color-muted-foreground: #a9b2de;
+  --color-accent: #1f2a5a;
+  --color-accent-foreground: #eef1ff;
+  --color-destructive: #ff4560;
+  --color-destructive-foreground: #0b1026;
+  --color-border: #36428a;
+  --color-input: #36428a;
+  --color-ring: #3ee6ff;
+  --radius: 0px;
+  --shadow-card: 4px 4px 0 0 #05060f;
+  --shadow-card-hover: 4px 4px 0 0 #05060f;
+  --color-shell: #0b1026;
+  --color-shell-panel: #151c3d;
+}

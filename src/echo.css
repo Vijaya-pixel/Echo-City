@@ -1,0 +1,264 @@
+/*
+ * Echo City pixel-art layer: fonts, pixel primitives and sprite-style motion.
+ *
+ * Rules this file follows:
+ *  - No rounded corners, no blur. Hard 4px borders and offset shadows.
+ *  - Spacing in multiples of 4px.
+ *  - Animations use steps() so they move like sprites.
+ *  - Everything animated is switched off under prefers-reduced-motion.
+ */
+
+@import '@fontsource/press-start-2p/400.css';
+@import '@fontsource/vt323/400.css';
+
+/* ── Base ──────────────────────────────────────────────────────────────── */
+
+@layer base {
+  body {
+    font-family: var(--font-pixel);
+    font-size: 20px; /* VT323 runs small; 20px reads like 15px body text */
+    line-height: 1.25;
+    -webkit-font-smoothing: none;
+  }
+  h1, h2, h3, .font-display {
+    font-family: var(--font-display);
+    letter-spacing: 0.02em;
+    line-height: 1.5;
+  }
+  img, svg.pixel, canvas {
+    image-rendering: pixelated;
+  }
+  * {
+    border-radius: 0 !important;
+  }
+  ::selection {
+    background: var(--color-magenta);
+    color: var(--color-background);
+  }
+  :focus-visible {
+    outline: 4px solid var(--color-detective);
+    outline-offset: 2px;
+  }
+}
+
+/* ── Pixel panel: notched corners drawn with box-shadow (keeps the drop shadow) ── */
+
+.px-panel {
+  --b: 4px;
+  --line: var(--color-border);
+  background: var(--color-card);
+  margin: var(--b);
+  box-shadow:
+    0 calc(-1 * var(--b)) 0 0 var(--line),
+    0 var(--b) 0 0 var(--line),
+    calc(-1 * var(--b)) 0 0 0 var(--line),
+    var(--b) 0 0 0 var(--line),
+    var(--b) calc(var(--b) * 2) 0 0 var(--color-shadow),
+    calc(var(--b) * 2) var(--b) 0 0 var(--color-shadow);
+}
+.px-panel-hero { --line: var(--color-hero); }
+.px-panel-villain { --line: var(--color-villain); }
+.px-panel-detective { --line: var(--color-detective); }
+.px-panel-lime { --line: var(--color-lime); }
+
+/* Small notched chip (badges, room code letters). */
+.px-chip {
+  clip-path: polygon(4px 0, calc(100% - 4px) 0, 100% 4px, 100% calc(100% - 4px), calc(100% - 4px) 100%, 4px 100%, 0 calc(100% - 4px), 0 4px);
+}
+
+/* ── Arcade button: depresses 2px on press ────────────────────────────── */
+
+.btn-arcade {
+  font-family: var(--font-display);
+  font-size: 12px;
+  line-height: 1.4;
+  text-transform: uppercase;
+  min-height: 48px;
+  padding: 12px 20px;
+  background: var(--btn-bg, var(--color-primary));
+  color: var(--btn-fg, var(--color-primary-foreground));
+  box-shadow:
+    inset -4px -4px 0 0 var(--btn-edge, rgb(0 0 0 / 0.28)),
+    0 4px 0 0 var(--color-shadow),
+    4px 0 0 0 var(--color-shadow),
+    4px 4px 0 0 var(--color-shadow);
+  transition: transform 60ms steps(1), box-shadow 60ms steps(1);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+}
+.btn-arcade:hover:not(:disabled) { filter: brightness(1.08); }
+.btn-arcade:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow:
+    inset -4px -4px 0 0 var(--btn-edge, rgb(0 0 0 / 0.28)),
+    0 2px 0 0 var(--color-shadow),
+    2px 0 0 0 var(--color-shadow),
+    2px 2px 0 0 var(--color-shadow);
+}
+.btn-arcade:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-villain { --btn-bg: var(--color-villain); --btn-fg: var(--color-villain-foreground); }
+.btn-detective { --btn-bg: var(--color-detective); --btn-fg: var(--color-detective-foreground); }
+.btn-lime { --btn-bg: var(--color-lime); --btn-fg: var(--color-lime-foreground); }
+.btn-ghost-px {
+  --btn-bg: var(--color-panel2);
+  --btn-fg: var(--color-foreground);
+  --btn-edge: var(--color-shadow);
+}
+
+/* Pixel text input. */
+.px-input {
+  font-family: var(--font-pixel);
+  font-size: 22px;
+  min-height: 48px;
+  padding: 8px 12px;
+  background: var(--color-background);
+  color: var(--color-foreground);
+  border: 4px solid var(--color-border);
+  box-shadow: inset 4px 4px 0 0 var(--color-shadow);
+}
+.px-input:focus { border-color: var(--color-detective); outline: none; }
+
+/* ── Neon title (landing) ──────────────────────────────────────────────── */
+
+.neon-title {
+  font-family: var(--font-display);
+  color: var(--color-neon);
+  text-shadow:
+    0 0 0 var(--color-neon),
+    4px 4px 0 var(--color-shadow),
+    0 0 8px var(--color-neon),
+    0 0 20px var(--color-neon),
+    0 0 40px var(--color-villain);
+  animation: neon-flicker 7s steps(1) infinite;
+}
+@keyframes neon-flicker {
+  0%, 18%, 22%, 25%, 53%, 57%, 100% { opacity: 1; }
+  20%, 24%, 55% { opacity: 0.35; text-shadow: 4px 4px 0 var(--color-shadow); }
+}
+.press-start { animation: blink 1.1s steps(1) infinite; }
+
+/* Landing lineup: one hero keeps flickering into a villain. */
+.turncoat-villain { opacity: 0; animation: turncoat 5s steps(1) infinite; }
+@keyframes turncoat {
+  0%, 70% { opacity: 0; }
+  72%, 74%, 78%, 100% { opacity: 1; }
+  73%, 76% { opacity: 0; }
+}
+@keyframes blink { 50% { opacity: 0; } }
+
+/* ── Skyline parallax ──────────────────────────────────────────────────── */
+
+.skyline-layer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 200%;
+  height: 100%;
+  display: flex;
+  animation: skyline-scroll var(--speed, 90s) steps(240) infinite;
+}
+.skyline-layer > svg { width: 50%; height: 100%; flex: none; }
+@keyframes skyline-scroll { to { transform: translateX(-50%); } }
+.sky-far { fill: var(--color-panel2); }
+.sky-near { fill: var(--color-shadow); }
+.sky-window { fill: var(--color-hero); }
+.sky-window-alt { fill: var(--color-magenta); }
+.sky-star { fill: var(--color-foreground); }
+
+/* ── CRT scanlines (toggle with <html data-crt="off">) ─────────────────── */
+
+.crt::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 60;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgb(0 0 0 / 0) 0,
+    rgb(0 0 0 / 0) 2px,
+    rgb(0 0 0 / 0.16) 2px,
+    rgb(0 0 0 / 0.16) 4px
+  );
+}
+html[data-crt='off'] .crt::after { display: none; }
+
+/* ── Game motion ───────────────────────────────────────────────────────── */
+
+/* Episode title card: slides in, holds, slides out. */
+.title-card { animation: title-card 2.4s steps(12) forwards; }
+@keyframes title-card {
+  0% { transform: translateX(-110%); }
+  20%, 80% { transform: translateX(0); }
+  100% { transform: translateX(110%); }
+}
+
+/* Secret identity card flip. */
+.flip { perspective: 800px; }
+.flip-inner {
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 600ms steps(6);
+}
+.flip.is-flipped .flip-inner { transform: rotateY(180deg); }
+.flip-face { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.flip-back { position: absolute; inset: 0; transform: rotateY(180deg); }
+
+/* Hat: chit rises out, then unfolds. */
+.chit-rise { animation: chit-rise 900ms steps(9) forwards; }
+@keyframes chit-rise {
+  from { transform: translateY(60px) scale(0.4); opacity: 0; }
+  to { transform: translateY(-8px) scale(1); opacity: 1; }
+}
+.chit-unfold { animation: chit-unfold 500ms steps(5) 900ms both; transform-origin: top; }
+@keyframes chit-unfold { from { transform: scaleY(0.1); } to { transform: scaleY(1); } }
+.hat-wobble { animation: hat-wobble 1.2s steps(4) infinite; }
+@keyframes hat-wobble { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-3deg); } 75% { transform: rotate(3deg); } }
+
+/* Countdown bar. */
+.timer-bar { transition: width 250ms steps(2); }
+.timer-danger { animation: blink 0.5s steps(1) infinite; }
+
+/* VS reveal. */
+.vs-left { animation: vs-left 500ms steps(5) both; }
+.vs-right { animation: vs-right 500ms steps(5) both; }
+.vs-pop { animation: vs-pop 400ms steps(4) 500ms both; }
+@keyframes vs-left { from { transform: translateX(-120%); } to { transform: translateX(0); } }
+@keyframes vs-right { from { transform: translateX(120%); } to { transform: translateX(0); } }
+@keyframes vs-pop { from { transform: scale(3); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+/* Screen shake when the villain is caught. */
+.shake { animation: shake 480ms steps(6); }
+@keyframes shake {
+  0%, 100% { transform: translate(0, 0); }
+  20% { transform: translate(-8px, 4px); }
+  40% { transform: translate(8px, -4px); }
+  60% { transform: translate(-4px, -4px); }
+  80% { transform: translate(4px, 4px); }
+}
+
+/* Pixel confetti. Each piece gets --x, --d (delay), --c (color) inline. */
+.confetti-piece {
+  position: absolute;
+  top: -16px;
+  left: var(--x);
+  width: 8px;
+  height: 8px;
+  background: var(--c);
+  animation: confetti-fall 2.4s steps(24) var(--d) forwards;
+}
+@keyframes confetti-fall {
+  to { transform: translateY(110vh) rotate(360deg); }
+}
+
+/* Gentle "it's your turn" pulse. */
+.turn-pulse { animation: turn-pulse 1s steps(2) infinite; }
+@keyframes turn-pulse { 50% { box-shadow: 0 0 0 4px var(--color-hero); } }
+
+/* ── Reduced motion: no animation at all ───────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
