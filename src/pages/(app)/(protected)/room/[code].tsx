@@ -9,14 +9,12 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { useAuth, usePresence, useQuery } from 'deepspace'
+import { useAuth, useMutations, usePresence, useQuery } from 'deepspace'
 import { Button } from '@/components/ui'
-import { EPISODE_TITLES, getLocation } from '@/game/data'
-import type { Assignment, Clue, Game, Player, Vote } from '@/game/types'
+import type { Assignment, Clue, Game, Player, Sus, Vote } from '@/game/types'
 import { callAction, syncServerClock, useAdvanceOnExpire } from '@/lib/game-client'
-import { LocationBackdrop } from '@/components/game/LocationBackdrop'
-import { Skyline } from '@/components/game/Skyline'
-import { SettingsToggles, TitleCard } from '@/components/game/widgets'
+import { SceneBackdrop } from '@/components/game/PixelScene'
+import { PhaseTracker, SettingsToggles, SignalLoader } from '@/components/game/widgets'
 import { ChitReveal, CluePhase, DiscussPhase, DrawPhase, Lobby, useIsRevealingCard, type RoomState } from '@/components/game/phases'
 import { LastGuessPhase, RevealPhase, VotePhase } from '@/components/game/endgame'
 
@@ -38,6 +36,9 @@ export default function RoomPage() {
   // Only my own rows ever arrive here (read: 'own').
   const assignments = useQuery<Assignment>('assignments', { where: { gameId, round } })
   const votes = useQuery<Vote>('votes', { where: { gameId, round } })
+  // Live suspicion taps (public). Voter = voterId (AI) or createdBy (humans).
+  const susRows = useQuery<Sus>('sus', { where: { gameId, round } })
+  const susMut = useMutations<Sus>('sus')
   const { isOnline } = usePresence()
 
   const seated = players.records.some((p) => p.data.userId === myId)
@@ -62,7 +63,7 @@ export default function RoomPage() {
 
   const aliasMap = useMemo(() => new Map(players.records.map((p) => [p.data.userId, p.data.alias])), [players.records])
 
-  if (games.status === 'loading') return <Centered>Tuning in...</Centered>
+  if (games.status === 'loading') return <Centered><SignalLoader label="CONNECTING TO ECHO CITY" sub="Picking up the signal…" /></Centered>
   if (!game || !g) {
     return (
       <Centered>
@@ -84,7 +85,7 @@ export default function RoomPage() {
             </Button>
           </>
         ) : (
-          'Taking your seat...'
+          <SignalLoader label="JOINING THE CREW" sub="Finding you a seat…" />
         )}
       </Centered>
     )
@@ -98,51 +99,62 @@ export default function RoomPage() {
     clues: clues.records,
     myVote: votes.records.find((v) => v.data.voterId === myId)?.data,
     isOnline,
-    alias: (id) => (id ? (aliasMap.get(id) ?? 'Unknown hero') : 'no one'),
+    // Your own hero name always carries "(you)" so you can find yourself on every screen.
+    alias: (id) => (id ? `${aliasMap.get(id) ?? 'Unknown hero'}${id === myId ? ' (you)' : ''}` : 'no one'),
     remaining,
+    sus: (() => {
+      const counts = new Map<string, number>()
+      let mine: { recordId: string; targetId: string }[] = []
+      for (const row of susRows.records) {
+        counts.set(row.data.targetId, (counts.get(row.data.targetId) ?? 0) + 1)
+        if (!row.data.voterId && row.createdBy === myId) mine = [...mine, { recordId: row.recordId, targetId: row.data.targetId }]
+      }
+      const top = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]
+      return {
+        count: (id: string) => counts.get(id) ?? 0,
+        mine: (id: string) => mine.some((m) => m.targetId === id),
+        topId: top && top[1] > 0 && [...counts.values()].filter((v) => v === top[1]).length === 1 ? top[0] : null,
+        max: Math.max(1, players.records.length - 1),
+        toggle: (id: string) => {
+          const existing = mine.find((m) => m.targetId === id)
+          if (existing) void susMut.remove(existing.recordId)
+          else if (susMut.ready) void susMut.create({ gameId, round, targetId: id })
+        },
+      }
+    })(),
   }
 
-  const location = getLocation(g.location)
   const inRound = g.status !== 'lobby' && g.status !== 'draw'
 
   return (
     <div className="relative min-h-full overflow-x-hidden">
-      {/* Backdrop: skyline in the lobby/draw, tonight's location during the round. */}
-      {inRound && location ? (
-        <div className="fixed inset-0 -z-0 opacity-40">
-          <LocationBackdrop locationId={location.id} />
-        </div>
-      ) : (
-        <Skyline className="fixed h-56 opacity-70" />
-      )}
+      {/* Backdrop: Echo City (the only setting), dimmed a little more during a round. */}
+      <SceneBackdrop scene="echo-dusk" dim={inRound ? 'medium' : 'light'} />
 
-      <TitleCard
-        phaseKey={`${g.round}:${g.status}`}
-        episode={Math.max(1, g.round)}
-        title={g.status === 'clues' && revealing && location ? location.name.toUpperCase() : EPISODE_TITLES[g.status]}
-      />
 
       <div className="relative z-10 mx-auto flex max-w-5xl flex-col gap-6 px-4 py-6">
         <header className="flex items-center justify-between gap-2">
           <div className="min-w-0">
-            <div className="font-display text-[10px] text-magenta">
-              {g.round > 0 ? `EPISODE ${g.round}` : 'PRE-SHOW'} · {EPISODE_TITLES[g.status]}
-            </div>
+            <div className="font-display text-[10px] text-magenta">{g.round > 0 ? `ROUND ${g.round}` : 'LOBBY'}</div>
             <div className="truncate text-muted-foreground">
               Room {g.code}
-              {location && inRound ? ` · ${location.emoji} ${location.name}` : ''}
+              {aliasMap.get(myId) ? ` · You are ${aliasMap.get(myId)}` : ''}
             </div>
           </div>
+          {g.status !== 'lobby' && <PhaseTracker status={g.status} />}
           <SettingsToggles />
         </header>
 
+
+        <div key={`${g.round}:${g.status}:${revealing ? 'r' : ''}`} className="phase-enter">
         {g.status === 'lobby' && <Lobby s={s} />}
-        {g.status === 'draw' && <DrawPhase s={s} />}
+        {g.status === 'draw' && <DrawPhase />}
         {g.status === 'clues' && (revealing ? <ChitReveal s={s} /> : <CluePhase s={s} />)}
         {g.status === 'discuss' && <DiscussPhase s={s} />}
         {g.status === 'vote' && <VotePhase s={s} />}
         {g.status === 'lastguess' && <LastGuessPhase s={s} />}
         {g.status === 'reveal' && <RevealPhase s={s} />}
+        </div>
       </div>
     </div>
   )

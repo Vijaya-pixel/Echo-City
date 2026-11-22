@@ -11,8 +11,10 @@
  *    roles and votes never reach your WebSocket.
  *  - `secrets` (who the villain is, both words) and `locks` are readable by
  *    nobody. Only server actions (RBAC off) touch them.
- *  - The only client-writable collection is `chats`, limited to three fields
- *    and 200 characters. Its author is the server-stamped `createdBy`.
+ *  - Client-writable collections: `chats` (three fields, 200 characters) and
+ *    `sus` (live suspicion taps: gameId, round, targetId). Their author is the
+ *    server-stamped `createdBy`; a player may delete only their own sus tap.
+ *    AI players' sus taps are written by server actions with `voterId` set.
  *
  * Note on `userBound`: the schema lint suggests `userBound: true` on owner
  * columns so a *client* can't claim someone else's id. Here no client can
@@ -129,6 +131,17 @@ export const chatsSchema: CollectionSchema = {
   },
 }
 
+/** Live suspicion taps. Public counts; each player toggles their own. */
+export const susSchema: CollectionSchema = {
+  name: 'sus',
+  columns: [text('gameId', { required: true }), num('round'), text('targetId', { required: true }), text('voterId')],
+  permissions: {
+    viewer: NONE,
+    member: { read: true, create: true, update: false, delete: 'own', writableFields: ['gameId', 'round', 'targetId'] },
+    admin: { read: true, create: true, update: false, delete: true, writableFields: ['gameId', 'round', 'targetId'] },
+  },
+}
+
 export const statsSchema: CollectionSchema = {
   name: 'stats',
   columns: [
@@ -171,6 +184,7 @@ export const gameSchemas: CollectionSchema[] = [
   secretsSchema,
   cluesSchema,
   chatsSchema,
+  susSchema,
   statsSchema,
   locksSchema,
 ]

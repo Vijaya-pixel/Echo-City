@@ -26,7 +26,7 @@ declare const __DEEPSPACE_SITE_ORIGIN__: string | undefined
 
 export const seo = {
   title: `${APP_NAME} | Trust no hero`,
-  description: 'A pixel-art superhero party game for 3 to 8 players. One hero is secretly a villain: give one-word clues, argue, vote, and unmask the turncoat.',
+  description: 'A pixel-art superhero party game for 3 to 8 players. One hero is secretly the Glitch: give one-word clues, argue, vote, and unmask them.',
   /** Public origin for canonical URLs, og:url, and the sitemap — no trailing
    *  slash. Replace with the custom domain once one is attached, e.g.
    *  'https://www.example.com'. */

@@ -18,14 +18,14 @@ const buttonVariants = cva(
         success: 'btn-arcade btn-lime',
         outline: 'btn-arcade btn-ghost-px',
         secondary: 'btn-arcade btn-ghost-px',
-        ghost: 'min-h-11 px-3 font-display text-[10px] uppercase text-muted-foreground hover:text-foreground disabled:opacity-50',
+        ghost: 'min-h-10 rounded-full px-3 text-sm font-semibold text-muted-foreground hover:bg-white/5 hover:text-foreground disabled:opacity-50',
         link: 'text-primary underline-offset-4 hover:underline',
       },
       size: {
         default: '',
-        sm: 'min-h-11 px-3 py-2 text-[10px]',
-        lg: 'min-h-14 px-6 text-sm',
-        icon: 'h-11 w-11 p-0',
+        sm: '!min-h-9 !py-1.5 !pl-4 !pr-8 !text-[11px] after:!right-3',
+        lg: '!min-h-13 !pl-8 !pr-12 !text-sm',
+        icon: 'btn-icon h-10 w-10 p-0',
       },
     },
     defaultVariants: {

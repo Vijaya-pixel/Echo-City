@@ -16,3 +16,6 @@ src/modals.tsx
 
 # Local dev HTTPS certs
 .certs/
+
+# Local env overrides (dev test-account credentials)
+.env*.local

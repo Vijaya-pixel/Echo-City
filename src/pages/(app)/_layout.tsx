@@ -20,9 +20,11 @@ import { Outlet } from 'react-router-dom'
 import { DeepSpaceAuthProvider, useAuthStatus } from 'deepspace'
 import { RecordProvider, RecordScope, AgentTools } from 'deepspace'
 import Navigation from '../../components/Navigation'
+import { SignalLoader } from '../../components/game/widgets'
 import { useToast } from '@/components/ui'
 import { APP_NAME, SCOPE_ID } from '../../constants'
 import { schemas } from '../../schemas'
+import { useDevAutoSignIn } from '../../lib/dev-auto-signin'
 
 export default function AppLayout() {
   return (
@@ -33,8 +35,8 @@ export default function AppLayout() {
       <AuthBoot>
         <div className="crt flex h-screen flex-col bg-background overflow-hidden">
           <Navigation />
-          <main className="flex-1 overflow-y-auto min-h-0">
-            <Suspense fallback={<div className="flex items-center justify-center h-full font-display text-[10px] text-muted-foreground">LOADING...</div>}>
+          <main className="flex-1 overflow-y-auto overscroll-none min-h-0">
+            <Suspense fallback={<div className="flex h-full items-center justify-center"><SignalLoader label="LOADING" /></div>}>
               <Outlet />
             </Suspense>
           </main>
@@ -55,13 +57,15 @@ export default function AppLayout() {
  */
 function AuthBoot({ children }: { children: ReactNode }) {
   const { isLoaded } = useAuthStatus()
+  // Local dev only: silently sign in a test player (see lib/dev-auto-signin).
+  const devSignIn = useDevAutoSignIn()
   // Record writes (`create`/`put`/`remove`) are fire-and-forget — they resolve
   // before the server answers, so a denied or invalid write only surfaces
   // through onWriteError. Route rejections to toasts so they're never a
   // silent no-op. Keep this wiring when customizing the layout.
   const { error, warning } = useToast()
 
-  if (!isLoaded) {
+  if (!isLoaded || devSignIn.pending) {
     return <div aria-busy="true" className="fixed inset-0 bg-background" />
   }
 

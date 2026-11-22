@@ -26,101 +26,34 @@ export interface Location {
   pairs: Record<Difficulty, WordPair[]>
 }
 
+/**
+ * One setting: Echo City. (Kept as a list so the location plumbing stays the
+ * same.) The AI generates fresh word pairs per round; these are the fallbacks
+ * if that call fails, so there are plenty of them to avoid repeats.
+ */
 export const LOCATIONS: Location[] = [
   {
     id: 'rooftops',
-    name: 'Echo City Rooftops',
+    name: 'Echo City',
     emoji: '🌃',
     palette: ['#0b1030', '#2a1650', '#1a2148', '#0a0d22', '#ff3ea5'],
-    flavor: ['skyline', 'night', 'wind', 'height', 'concrete', 'glow'],
+    flavor: ['skyline', 'night', 'neon', 'street', 'concrete', 'glow', 'rain', 'traffic'],
     pairs: {
-      rookie: [['Pigeon', 'Billboard'], ['Water Tower', 'Neon Sign'], ['Chimney', 'Pizza Box']],
-      hero: [['Skylight', 'Window'], ['Antenna', 'Satellite Dish'], ['Fire Escape', 'Ladder']],
-      legend: [['Rooftop', 'Terrace'], ['Searchlight', 'Spotlight'], ['Gargoyle', 'Statue']],
-    },
-  },
-  {
-    id: 'castle',
-    name: 'The Castle',
-    emoji: '🏰',
-    palette: ['#1a0f2e', '#4a2340', '#3a3550', '#1c1a2a', '#ffcc33'],
-    flavor: ['royal', 'stone', 'ancient', 'medieval', 'guard', 'banner'],
-    pairs: {
-      rookie: [['Dragon', 'Banquet'], ['Moat', 'Crown'], ['Knight', 'Tapestry']],
-      hero: [['Throne', 'Crown'], ['Sword', 'Lance'], ['Tower', 'Dungeon']],
-      legend: [['Shield', 'Armor'], ['King', 'Emperor'], ['Fortress', 'Citadel']],
-    },
-  },
-  {
-    id: 'beach',
-    name: 'The Beach',
-    emoji: '🏖️',
-    palette: ['#ff9a5a', '#ffd38a', '#2f8fb8', '#e8c27a', '#ffffff'],
-    flavor: ['sunny', 'salty', 'summer', 'sand', 'waves', 'relax'],
-    pairs: {
-      rookie: [['Sandcastle', 'Lifeguard'], ['Surfboard', 'Crab'], ['Umbrella', 'Seagull']],
-      hero: [['Sandcastle', 'Seashell'], ['Wave', 'Tide'], ['Starfish', 'Jellyfish']],
-      legend: [['Sunscreen', 'Sunblock'], ['Shore', 'Coast'], ['Dune', 'Sandbank']],
-    },
-  },
-  {
-    id: 'space',
-    name: 'Space Station',
-    emoji: '🛰️',
-    palette: ['#05060f', '#111a3a', '#2a3366', '#8a93c2', '#3ee6ff'],
-    flavor: ['orbit', 'zero-g', 'stars', 'metal', 'signal', 'vacuum'],
-    pairs: {
-      rookie: [['Astronaut', 'Solar Panel'], ['Rocket', 'Space Food'], ['Airlock', 'Telescope']],
-      hero: [['Meteor', 'Comet'], ['Laser', 'Lightning'], ['Moon', 'Planet']],
-      legend: [['Spaceship', 'Starship'], ['Orbit', 'Trajectory'], ['Galaxy', 'Nebula']],
-    },
-  },
-  {
-    id: 'carnival',
-    name: 'Haunted Carnival',
-    emoji: '🎪',
-    palette: ['#14081f', '#3d1035', '#5a1f4a', '#1e0b1c', '#8cff5a'],
-    flavor: ['spooky', 'lights', 'tickets', 'creepy', 'music', 'games'],
-    pairs: {
-      rookie: [['Clown', 'Popcorn'], ['Ferris Wheel', 'Ghost'], ['Cotton Candy', 'Mirror Maze']],
-      hero: [['Carousel', 'Ferris Wheel'], ['Ghost', 'Skeleton'], ['Juggler', 'Magician']],
-      legend: [['Phantom', 'Specter'], ['Ticket', 'Pass'], ['Fortune Teller', 'Psychic']],
-    },
-  },
-  {
-    id: 'temple',
-    name: 'Jungle Temple',
-    emoji: '🌴',
-    palette: ['#0f2a1c', '#2d5a2a', '#3c6b34', '#16301b', '#ffcc33'],
-    flavor: ['humid', 'hidden', 'vines', 'ancient', 'explore', 'gold'],
-    pairs: {
-      rookie: [['Snake', 'Treasure'], ['Vine', 'Idol'], ['Monkey', 'Torch']],
-      hero: [['Map', 'Compass'], ['Trap', 'Pit'], ['Ruins', 'Statue']],
-      legend: [['Jungle', 'Rainforest'], ['Relic', 'Artifact'], ['Altar', 'Shrine']],
-    },
-  },
-  {
-    id: 'underwater',
-    name: 'Underwater Lab',
-    emoji: '🫧',
-    palette: ['#03203a', '#06456b', '#0b6e8a', '#04263d', '#3ee6ff'],
-    flavor: ['deep', 'pressure', 'science', 'bubbles', 'glass', 'blue'],
-    pairs: {
-      rookie: [['Submarine', 'Microscope'], ['Octopus', 'Computer'], ['Shark', 'Test Tube']],
-      hero: [['Diver', 'Snorkel'], ['Coral', 'Seaweed'], ['Dolphin', 'Whale']],
-      legend: [['Oxygen Tank', 'Air Tank'], ['Porthole', 'Window'], ['Scientist', 'Researcher']],
-    },
-  },
-  {
-    id: 'arctic',
-    name: 'Arctic Base',
-    emoji: '❄️',
-    palette: ['#1b2a4a', '#5a7aa8', '#c8daf0', '#8aa6cc', '#ffffff'],
-    flavor: ['cold', 'white', 'frozen', 'wind', 'remote', 'north'],
-    pairs: {
-      rookie: [['Penguin', 'Radio'], ['Igloo', 'Snowmobile'], ['Polar Bear', 'Hot Cocoa']],
-      hero: [['Blizzard', 'Avalanche'], ['Sled', 'Ski'], ['Glacier', 'Iceberg']],
-      legend: [['Frost', 'Ice'], ['Parka', 'Coat'], ['Snowstorm', 'Whiteout']],
+      rookie: [
+        ['Pigeon', 'Billboard'], ['Water Tower', 'Neon Sign'], ['Chimney', 'Pizza Box'], ['Taxi', 'Subway'],
+        ['Hot Dog', 'Pretzel'], ['Skyscraper', 'Bridge'], ['Streetlight', 'Mailbox'], ['Ramen', 'Arcade'],
+        ['Train', 'Elevator'], ['Graffiti', 'Fountain'],
+      ],
+      hero: [
+        ['Skylight', 'Window'], ['Antenna', 'Satellite Dish'], ['Fire Escape', 'Ladder'], ['Bus', 'Tram'],
+        ['Alley', 'Street'], ['Hotel', 'Apartment'], ['Rooftop Bar', 'Nightclub'], ['Drone', 'Helicopter'],
+        ['Hologram', 'Billboard'], ['Crosswalk', 'Traffic Light'],
+      ],
+      legend: [
+        ['Rooftop', 'Terrace'], ['Searchlight', 'Spotlight'], ['Gargoyle', 'Statue'], ['Avenue', 'Boulevard'],
+        ['Skyline', 'Horizon'], ['Penthouse', 'Loft'], ['Neon', 'LED'], ['Metro', 'Subway'],
+        ['Downtown', 'Midtown'], ['Smog', 'Fog'],
+      ],
     },
   },
 ]
@@ -131,17 +64,20 @@ export function getLocation(id: string | null | undefined): Location | undefined
 
 // ── Modes & difficulty labels (UI copy) ─────────────────────────────────────
 
-export const MODES: Record<Mode, { label: string; blurb: string }> = {
+export const MODES: Record<Mode, { label: string; tag: string; blurb: string }> = {
   classic: {
-    label: 'Secret Word',
+    label: 'Battleworld',
+    tag: 'Classic',
     blurb: 'The villain gets a close decoy word and does not know they are the villain.',
   },
   blind: {
-    label: 'Blind Villain',
+    label: 'Shadow Protocol',
+    tag: 'Blind villain',
     blurb: 'The villain only knows the location. If caught, one last guess can steal the win.',
   },
   detective: {
     label: 'Detective',
+    tag: 'Scan one',
     blurb: 'One hero secretly gets a single scan: villain or hero?',
   },
 }
@@ -155,14 +91,14 @@ export const DIFFICULTIES: Record<Difficulty, { label: string; blurb: string; la
 // ── Timers (milliseconds) ───────────────────────────────────────────────────
 
 export const TIMERS = {
-  draw: 15_000, // drawer must tap within this, or the server auto-draws
-  botDraw: 3_000, // a bot drawer "thinks" briefly, then draws
-  cardReveal: 8_000, // grace time after the draw for the chit + secret card animations
-  clueTurn: 30_000, // per human clue turn (then it auto-passes)
-  botTurn: 3_000, // bots take turns one at a time with a short "thinking" pause
-  discuss: 60_000,
-  vote: 45_000,
-  lastGuess: 30_000,
+  draw: 8_000, // drawer must tap within this, or the server auto-draws
+  botDraw: 1_500, // a bot drawer "thinks" briefly, then draws
+  cardReveal: 5_000, // grace time after the draw for the chit + secret card animations
+  clueTurn: 20_000, // per human clue turn (then it auto-passes)
+  botTurn: 2_000, // bots take turns one at a time with a short "thinking" pause
+  discuss: 40_000,
+  vote: 25_000,
+  lastGuess: 20_000,
 }
 
 export const MIN_PLAYERS = 3
@@ -208,15 +144,6 @@ export function makeAlias(taken: string[]): string {
 }
 
 /** Episode titles shown on the title cards between phases. */
-export const EPISODE_TITLES: Record<GameStatus, string> = {
-  lobby: 'THE LEAGUE ASSEMBLES',
-  draw: 'THE DRAW',
-  clues: 'THE CLUES',
-  discuss: 'THE INTERROGATION',
-  vote: 'THE VOTE',
-  lastguess: 'THE LAST GAMBLE',
-  reveal: 'THE TURNCOAT',
-}
 
 // ── Small helpers ───────────────────────────────────────────────────────────
 

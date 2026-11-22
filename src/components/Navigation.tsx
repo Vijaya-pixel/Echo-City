@@ -12,7 +12,9 @@ import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { AuthOverlay, useAuthProfileReady, signOut } from 'deepspace'
 import { ChevronDown, LogOut, Menu, X } from 'lucide-react'
+import { DEV_AUTO_SIGNIN } from '../lib/dev-auto-signin'
 import { APP_NAME } from '../constants'
+import { Logo, TechnoText } from './Logo'
 import type { Role } from '../constants'
 import { nav } from '../nav'
 import { cn } from '../lib/utils'
@@ -57,34 +59,32 @@ export default function Navigation() {
         key={item.path}
         to={item.path}
         aria-current={active ? 'page' : undefined}
-        className={cn(
-          'flex min-h-11 items-center px-3 font-display text-[10px] uppercase',
-          active ? 'text-hero' : 'text-muted-foreground hover:text-foreground',
-        )}
+        className={cn('group relative flex h-16 items-center px-4 transition-opacity', active ? '' : 'opacity-60 hover:opacity-100')}
       >
-        {item.label}
+        <TechnoText text={item.label} height={13} colors={[active ? '#ffffff' : '#c3c9ea']} label={item.label} />
+        <span className="nav-underline absolute inset-x-4 bottom-4 h-[3px] rounded-full bg-hero shadow-[0_0_10px_var(--color-hero)]" aria-hidden />
       </Link>
     )
   }
 
   return (
     <>
-      <nav data-testid="app-navigation" className="relative z-20 border-b-4 border-border bg-background">
-        <div className="mx-auto flex h-14 max-w-7xl items-center gap-4 px-4">
-          <Link to="/home" className="font-display text-xs text-neon">
-            {APP_NAME.toUpperCase()}
+      <nav data-testid="app-navigation" className="relative z-20 border-b border-white/10 bg-[#070915]">
+        <div className="mx-auto grid h-16 max-w-7xl grid-cols-[1fr_auto_1fr] items-center gap-4 px-4 sm:px-6">
+          <Link to="/" className="justify-self-start" aria-label={`${APP_NAME} home`}>
+            <Logo height={20} />
           </Link>
 
           <div className="hidden items-center md:flex">{visibleNav.map(navLink)}</div>
 
-          <div className="flex-1" />
+          <div className="flex items-center justify-self-end gap-2">
 
           {!isLoaded ? null : isSignedIn && !profileReady ? (
             /* Signed in, profile still loading — skeleton pill, never the
                Sign in button (that would offer sign-in to a signed-in user). */
-            <div className="flex items-center gap-2 border-4 border-border bg-card py-1 pl-1 pr-2.5">
-              <div className="h-6 w-6 animate-pulse bg-muted" />
-              <div className="hidden h-4 w-20 animate-pulse bg-muted sm:block" />
+            <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 py-1 pl-1 pr-3">
+              <div className="h-8 w-8 animate-pulse rounded-full bg-muted" />
+              <div className="hidden h-4 w-20 animate-pulse rounded bg-muted sm:block" />
             </div>
           ) : isSignedIn && user ? (
             <DropdownMenu>
@@ -92,9 +92,9 @@ export default function Navigation() {
                 render={
                   <button
                     aria-label="Account menu"
-                    className="group flex min-h-11 items-center gap-2 border-4 border-border bg-card py-1 pl-1 pr-2.5 text-lg hover:border-muted-foreground"
+                    className="group flex items-center gap-2 rounded-full border border-white/10 bg-white/5 py-1 pl-1 pr-3 text-sm font-semibold transition-colors hover:bg-white/10"
                   >
-                    <Avatar className="h-7 w-7 overflow-hidden">
+                    <Avatar className="h-8 w-8 overflow-hidden rounded-full bg-white text-[#0b1026]">
                       <AvatarImage src={user.imageUrl ?? undefined} referrerPolicy="no-referrer" />
                       <AvatarFallback className="text-[11px]">
                         {(user.name?.[0] ?? user.email?.[0] ?? '?').toUpperCase()}
@@ -125,35 +125,39 @@ export default function Navigation() {
                     {user.email}
                   </div>
                 </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => signOut()}>
-                  <LogOut aria-hidden />
-                  Sign out
-                </DropdownMenuItem>
+                {!DEV_AUTO_SIGNIN && <DropdownMenuSeparator />}
+                {/* Local dev signs in automatically, so Sign out would just sign you back in. */}
+                {!DEV_AUTO_SIGNIN && (
+                  <DropdownMenuItem onClick={() => signOut()}>
+                    <LogOut aria-hidden />
+                    Sign out
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
             <button
               data-testid="nav-sign-in-button"
               onClick={() => setShowAuthModal(true)}
-              className="btn-arcade !min-h-11 !px-3 !py-2 !text-[10px]"
+              className="btn-arcade !min-h-9 !py-1.5 !pl-4 !pr-8 !text-[11px] after:!right-3"
             >
               Sign in
             </button>
           )}
 
           <button
-            className="inline-flex h-11 w-11 items-center justify-center text-muted-foreground hover:text-foreground md:hidden"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-white/5 hover:text-foreground md:hidden"
             onClick={() => setMobileMenuOpen((prev) => !prev)}
             aria-label="Toggle menu"
             aria-expanded={mobileMenuOpen}
           >
             {mobileMenuOpen ? <X className="h-4 w-4" aria-hidden /> : <Menu className="h-4 w-4" aria-hidden />}
           </button>
+          </div>
         </div>
 
         {mobileMenuOpen && (
-          <div className="flex flex-col border-t-4 border-border px-2 py-2 md:hidden">
+          <div className="flex flex-col border-t border-white/10 px-2 py-2 md:hidden">
             {visibleNav.map(navLink)}
           </div>
         )}

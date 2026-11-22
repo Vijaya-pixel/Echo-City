@@ -7,7 +7,7 @@
  *   line    #36428a  borders
  *   ink     #eef1ff  text
  *   dim     #a9b2de  secondary text (AA on night + panel)
- *   gold    #ffcc33  hero / primary
+ *   blue    #5b86ff  hero accent text · #3d68ff primary buttons (electric blue, ties to the logo)
  *   crimson #ff4560  villain / destructive (dark text on it for AA)
  *   cyan    #3ee6ff  detective
  *   lime    #8cff5a  success
@@ -19,8 +19,8 @@
  */
 
 @theme {
-  --color-hero: #ffcc33;
-  --color-hero-foreground: #0b1026;
+  --color-hero: #5b86ff;
+  --color-hero-foreground: #ffffff;
   --color-villain: #ff4560;
   --color-villain-foreground: #0b1026;
   --color-detective: #3ee6ff;
@@ -31,20 +31,20 @@
   --color-neon: #ff2a3d;
   --color-shadow: #05060f;
   --color-panel2: #1f2a5a;
-  --font-display: 'Press Start 2P', ui-monospace, monospace;
-  --font-pixel: 'VT323', ui-monospace, monospace;
+  --font-display: 'Orbitron', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Oxanium', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
 [data-theme="echo"] {
   color-scheme: dark;
-  --color-background: #0b1026;
+  --color-background: #090c1d;
   --color-foreground: #eef1ff;
   --color-card: #151c3d;
   --color-card-foreground: #eef1ff;
   --color-popover: #151c3d;
   --color-popover-foreground: #eef1ff;
-  --color-primary: #ffcc33;
-  --color-primary-foreground: #0b1026;
+  --color-primary: #3d68ff;
+  --color-primary-foreground: #ffffff;
   --color-secondary: #1f2a5a;
   --color-secondary-foreground: #eef1ff;
   --color-muted: #1f2a5a;
@@ -56,7 +56,7 @@
   --color-border: #36428a;
   --color-input: #36428a;
   --color-ring: #3ee6ff;
-  --radius: 0px;
+  --radius: 14px;
   --shadow-card: 4px 4px 0 0 #05060f;
   --shadow-card-hover: 4px 4px 0 0 #05060f;
   --color-shell: #0b1026;

@@ -5,59 +5,75 @@
  */
 
 import { useEffect, useState } from 'react'
-import { Monitor, MonitorOff, Volume2, VolumeX } from 'lucide-react'
+import { Volume2, VolumeX } from 'lucide-react'
 import { Button } from '@/components/ui'
 import { setSetting, useSettings } from '@/lib/game-client'
 import type { Location } from '@/game/data'
 import type { Assignment } from '@/game/types'
 import { PixelAvatar } from './PixelAvatar'
 
-// ── Hat + chit ──────────────────────────────────────────────────────────────
+// ── Digital countdown ───────────────────────────────────────────────────────
 
-/** Pixel top hat. When `location` is set, a chit rises out and unfolds (synced via drawnAt). */
-export function Hat({ location, animate = true }: { location?: Location; animate?: boolean }) {
+// Seven-segment digits: segments a..g (top, top-right, bottom-right, bottom,
+// bottom-left, top-left, middle). Unlit segments stay faintly visible, like a
+// real LED display.
+const SEG_ON: Record<string, string> = {
+  '0': 'abcdef', '1': 'bc', '2': 'abdeg', '3': 'abcdg', '4': 'bcfg',
+  '5': 'acdfg', '6': 'acdefg', '7': 'abc', '8': 'abcdefg', '9': 'abcdfg',
+}
+// Polygons in a 12x20 digit box (bevelled ends, small gaps between segments).
+const SEG_SHAPE: Record<string, string> = {
+  a: '2,0.5 10,0.5 8.5,2.5 3.5,2.5',
+  b: '10.5,1 11.5,2 11.5,9 10.5,10 9.5,9 9.5,3',
+  c: '10.5,10 11.5,11 11.5,18 10.5,19 9.5,17 9.5,11',
+  d: '3.5,17.5 8.5,17.5 10,19.5 2,19.5',
+  e: '1.5,10 2.5,11 2.5,17 1.5,19 0.5,18 0.5,11',
+  f: '1.5,1 2.5,3 2.5,9 1.5,10 0.5,9 0.5,2',
+  g: '2.5,10 3.5,9 8.5,9 9.5,10 8.5,11 3.5,11',
+}
+
+function Digit({ d, x, color }: { d: string; x: number; color: string }) {
+  const on = SEG_ON[d] ?? ''
   return (
-    <div className="relative mx-auto flex h-64 w-64 flex-col items-center justify-end">
-      {location && (
-        <div className={`absolute top-0 z-10 ${animate ? 'chit-rise' : ''}`}>
-          <div className={`px-panel px-panel-hero bg-foreground px-4 py-3 text-center ${animate ? 'chit-unfold' : ''}`}>
-            <div className="text-4xl leading-none">{location.emoji}</div>
-            <div className="mt-2 font-display text-[10px] text-background">{location.name.toUpperCase()}</div>
-          </div>
-        </div>
-      )}
-      <svg viewBox="0 0 32 24" width={192} height={144} shapeRendering="crispEdges" className={`pixel ${location ? '' : 'hat-wobble'}`} aria-label="Top hat">
-        {/* brim */}
-        <rect x={2} y={20} width={28} height={3} fill="#05060f" />
-        <rect x={3} y={20} width={26} height={1} fill="#36428a" />
-        {/* crown */}
-        <rect x={7} y={4} width={18} height={16} fill="#151c3d" />
-        <rect x={7} y={4} width={18} height={2} fill="#36428a" />
-        <rect x={8} y={6} width={2} height={14} fill="#1f2a5a" />
-        {/* band */}
-        <rect x={7} y={15} width={18} height={3} fill="#ff4560" />
-        <rect x={20} y={15} width={3} height={3} fill="#ffcc33" />
-        {/* opening */}
-        <rect x={9} y={3} width={14} height={1} fill="#05060f" />
-      </svg>
-    </div>
+    <g transform={`translate(${x} 0)`}>
+      {Object.entries(SEG_SHAPE).map(([k, pts]) => (
+        <polygon key={k} points={pts} fill={color} opacity={on.includes(k) ? 1 : 0.1} />
+      ))}
+    </g>
   )
 }
 
-// ── Countdown bar ───────────────────────────────────────────────────────────
-
-export function TimerBar({ remaining, total, label }: { remaining: number; total: number; label?: string }) {
-  const secs = Math.ceil(remaining / 1000)
-  const pct = total ? Math.max(0, Math.min(100, (remaining / total) * 100)) : 0
-  const danger = secs <= 10
+/** Digital LED countdown (m:ss). `total` is kept for API compatibility. */
+export function TimerBar({ remaining, label }: { remaining: number; total: number; label?: string }) {
+  const secs = Math.max(0, Math.ceil(remaining / 1000))
+  const color = secs <= 5 ? '#ff4d6d' : secs <= 10 ? '#ffc95a' : '#3ee6ff'
+  const text = `${Math.floor(secs / 60)}${String(secs % 60).padStart(2, '0')}`
   return (
-    <div className="w-full" aria-live="off">
-      <div className="mb-1 flex items-center justify-between font-display text-[10px] text-muted-foreground">
-        <span>{label ?? 'TIME'}</span>
-        <span className={danger ? 'timer-danger text-villain' : 'text-foreground'}>{String(secs).padStart(2, '0')}</span>
-      </div>
-      <div className="h-4 w-full border-4 border-border bg-background">
-        <div className={`timer-bar h-full ${danger ? 'bg-villain' : 'bg-lime'}`} style={{ width: `${pct}%` }} />
+    <div className="w-full" aria-live="off" aria-label={`${label ?? 'Time'}: ${secs} seconds`}>
+      <div className="flex items-center justify-between gap-3">
+        <span className="eyebrow">
+          {secs === 0 ? (
+            <span className="inline-flex items-center gap-2 text-hero">
+              Moving on <WorkingDots />
+            </span>
+          ) : (
+            (label ?? 'Time')
+          )}
+        </span>
+        <div
+          className={`rounded-lg border border-white/10 bg-[#05040e] px-2.5 py-1.5 ${secs <= 5 ? 'timer-danger' : ''}`}
+          style={{ boxShadow: `inset 0 0 12px rgb(0 0 0 / 0.8), 0 0 14px -6px ${color}` }}
+        >
+          <svg viewBox="0 0 48 20" width={67} height={28} style={{ filter: `drop-shadow(0 0 3px ${color})` }} aria-hidden>
+            <Digit d={text[0]} x={0} color={color} />
+            <g className={secs > 0 ? 'colon-blink' : undefined}>
+              <rect x={14} y={5.5} width={2} height={2} fill={color} />
+              <rect x={14} y={12.5} width={2} height={2} fill={color} />
+            </g>
+            <Digit d={text[1]} x={18} color={color} />
+            <Digit d={text[2]} x={33} color={color} />
+          </svg>
+        </div>
       </div>
     </div>
   )
@@ -65,23 +81,11 @@ export function TimerBar({ remaining, total, label }: { remaining: number; total
 
 // ── Secret identity card ────────────────────────────────────────────────────
 
-const ROLE_COPY: Record<Assignment['shownRole'], { title: string; tone: string; note: string }> = {
-  unknown: {
-    title: 'HERO?',
-    tone: 'px-panel-hero text-hero',
-    note: 'One of you has a different word. Maybe it is you.',
-  },
-  hero: { title: 'HERO', tone: 'px-panel-hero text-hero', note: 'Find the villain. They do not know the word.' },
-  villain: {
-    title: 'VILLAIN',
-    tone: 'px-panel-villain text-villain',
-    note: 'You have no word. Blend in. If caught, you get one last guess.',
-  },
-  detective: {
-    title: 'DETECTIVE',
-    tone: 'px-panel-detective text-detective',
-    note: 'You may scan one player this round.',
-  },
+const ROLE_COPY: Record<Assignment['shownRole'], { title: string; tone: string; note: string; short: string }> = {
+  unknown: { title: '', tone: 'px-panel-hero text-hero', note: 'One player has a different word. Maybe you.', short: 'One player has a different word.' },
+  hero: { title: '', tone: 'px-panel-hero text-hero', note: 'The Glitch has no word. Find them.', short: 'Find the player with no word.' },
+  villain: { title: 'YOU ARE THE GLITCH', tone: 'px-panel-villain text-villain', note: 'You have no word. Read the clues, bluff, and don\'t get caught.', short: 'No word. Bluff from the clues.' },
+  detective: { title: 'YOU ARE THE DETECTIVE', tone: 'px-panel-detective text-detective', note: 'You can scan one player.', short: 'Scan one player.' },
 }
 
 /** Flips over on mount (sprite-style). Tap to hide/show so neighbours can't peek. */
@@ -97,18 +101,17 @@ export function SecretCard({ assignment, compact = false }: { assignment: Assign
   }
   const role = ROLE_COPY[assignment.shownRole]
   const front = (
-    <div className={`px-panel ${role.tone} flex flex-col items-center justify-center gap-2 p-4 text-center ${compact ? 'min-h-28' : 'min-h-56'}`}>
-      <div className="font-display text-[10px] text-muted-foreground">YOUR SECRET IDENTITY</div>
-      <div className="font-display text-base">{role.title}</div>
-      <div className="text-muted-foreground">Location: {assignment.category}</div>
+    <div className={`px-panel ${role.tone} flex flex-col items-center justify-center gap-2 p-5 text-center ${compact ? 'min-h-28' : 'min-h-40'}`}>
+      {role.title && <div className="font-display text-[11px] font-extrabold">{role.title}</div>}
+      <div className="eyebrow">Your word</div>
       {hidden ? (
         <div className="font-display text-sm text-muted-foreground">TAP TO SHOW</div>
       ) : assignment.word ? (
-        <div className="font-display text-lg text-foreground">{assignment.word.toUpperCase()}</div>
+        <div className="font-display text-3xl font-black text-foreground">{assignment.word.toUpperCase()}</div>
       ) : (
-        <div className="font-display text-sm text-villain">NO WORD</div>
+        <div className="font-display text-2xl font-black text-villain">NO WORD</div>
       )}
-      {!compact && <p className="max-w-xs text-muted-foreground">{role.note}</p>}
+      <p className="max-w-xs text-muted-foreground">{compact ? role.short : role.note}</p>
       {assignment.scanResult && (
         <div className={`font-display text-[10px] ${assignment.scanResult === 'villain' ? 'text-villain' : 'text-lime'}`}>
           SCAN: {assignment.scanResult.toUpperCase()}
@@ -125,7 +128,7 @@ export function SecretCard({ assignment, compact = false }: { assignment: Assign
     >
       <div className="flip-inner">
         <div className="flip-face">
-          <div className={`px-panel flex items-center justify-center ${compact ? 'min-h-28' : 'min-h-56'}`}>
+          <div className={`px-panel flex items-center justify-center ${compact ? 'min-h-28' : 'min-h-40'}`}>
             <span className="font-display text-3xl text-hero">?</span>
           </div>
         </div>
@@ -135,24 +138,46 @@ export function SecretCard({ assignment, compact = false }: { assignment: Assign
   )
 }
 
-// ── Episode title card ──────────────────────────────────────────────────────
+// ── Phase tracker ───────────────────────────────────────────────────────────
 
-/** "EPISODE 2 · THE VOTE" slides across for 2.4s whenever `phaseKey` changes. */
-export function TitleCard({ phaseKey, episode, title }: { phaseKey: string; episode: number; title: string }) {
-  const [visibleKey, setVisibleKey] = useState<string | null>(phaseKey)
-  useEffect(() => {
-    setVisibleKey(phaseKey)
-    const t = setTimeout(() => setVisibleKey(null), 2400)
-    return () => clearTimeout(t)
-  }, [phaseKey])
-  if (visibleKey !== phaseKey) return null
+const PHASES = [
+  { key: 'clues', label: 'Clues' },
+  { key: 'discuss', label: 'Discuss' },
+  { key: 'vote', label: 'Vote' },
+  { key: 'reveal', label: 'Results' },
+] as const
+
+/**
+ * Compact step tracker in the room header: shows where the round is without
+ * covering the game. The active step pulses once when it changes.
+ */
+export function PhaseTracker({ status }: { status: string }) {
+  const current = status === 'draw' ? 'clues' : status === 'lastguess' ? 'vote' : status
+  const idx = PHASES.findIndex((p) => p.key === current)
   return (
-    <div className="pointer-events-none fixed inset-x-0 top-1/3 z-50 overflow-hidden">
-      <div className="title-card border-y-4 border-magenta bg-background py-4 text-center">
-        <div className="font-display text-[10px] text-magenta">EPISODE {episode}</div>
-        <div className="mt-2 font-display text-lg text-foreground sm:text-2xl">{title}</div>
-      </div>
-    </div>
+    <ol className="flex items-center gap-1" aria-label="Round progress">
+      {PHASES.map((p, i) => {
+        const state = i < idx ? 'done' : i === idx ? 'now' : 'next'
+        return (
+          <li key={p.key} className="flex items-center gap-1">
+            <span
+              key={state === 'now' ? `${p.key}-now` : p.key}
+              aria-current={state === 'now' ? 'step' : undefined}
+              className={`rounded-full px-2.5 py-1 font-display text-[10px] font-extrabold uppercase tracking-[0.1em] transition-colors sm:px-3 ${
+                state === 'now'
+                  ? 'phase-now bg-hero text-white shadow-[0_0_14px_-2px_var(--color-hero)]'
+                  : state === 'done'
+                    ? 'text-hero'
+                    : 'text-muted-foreground/60'
+              }`}
+            >
+              {p.label}
+            </span>
+            {i < PHASES.length - 1 && <span className={`h-px w-3 sm:w-5 ${i < idx ? 'bg-hero' : 'bg-white/15'}`} aria-hidden />}
+          </li>
+        )
+      })}
+    </ol>
   )
 }
 
@@ -212,7 +237,7 @@ export function PlayerChip({
         )}
       </div>
       <div className="min-w-0 flex-1">
-        <div className="truncate font-display text-[10px] leading-relaxed text-foreground">{alias}</div>
+        <div className="break-words font-display text-[10px] leading-relaxed text-foreground">{alias}</div>
         {children}
       </div>
     </div>
@@ -222,15 +247,48 @@ export function PlayerChip({
 // ── Settings toggles ────────────────────────────────────────────────────────
 
 export function SettingsToggles() {
-  const { muted, crt } = useSettings()
+  const { muted } = useSettings()
   return (
-    <div className="flex items-center gap-1">
-      <Button variant="ghost" size="icon" onClick={() => setSetting('muted', !muted)} aria-label={muted ? 'Unmute' : 'Mute'} title={muted ? 'Unmute' : 'Mute'}>
-        {muted ? <VolumeX /> : <Volume2 />}
-      </Button>
-      <Button variant="ghost" size="icon" onClick={() => setSetting('crt', !crt)} aria-label={crt ? 'Turn off scanlines' : 'Turn on scanlines'} title="CRT scanlines">
-        {crt ? <Monitor /> : <MonitorOff />}
-      </Button>
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={() => setSetting('muted', !muted)}
+      aria-label={muted ? 'Turn sound on' : 'Turn sound off'}
+      title={muted ? 'Sound off (click to turn on)' : 'Sound on (click to mute)'}
+    >
+      {muted ? <VolumeX /> : <Volume2 />}
+    </Button>
+  )
+}
+
+// ── Signal loader ───────────────────────────────────────────────────────────
+
+/** Neon "incoming signal" loader: pulsing equalizer bars + a short status line. */
+export function SignalLoader({ label, sub }: { label: string; sub?: string }) {
+  return (
+    <div className="flex flex-col items-center gap-4 py-10 text-center" role="status" aria-live="polite">
+      <div className="flex h-10 items-end gap-1.5" aria-hidden>
+        {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+          <span
+            key={i}
+            className="signal-bar w-2 rounded-sm bg-hero"
+            style={{ animationDelay: `${i * 0.11}s`, boxShadow: '0 0 10px var(--color-hero)' }}
+          />
+        ))}
+      </div>
+      <div className="font-display text-sm font-extrabold tracking-[0.18em] text-foreground">{label}</div>
+      {sub && <div className="text-sm text-muted-foreground">{sub}</div>}
     </div>
+  )
+}
+
+/** Tiny animated "working" dots for inline status lines. */
+export function WorkingDots() {
+  return (
+    <span className="inline-flex items-center gap-1 align-middle" aria-hidden>
+      {[0, 1, 2].map((i) => (
+        <span key={i} className="working-dot h-1.5 w-1.5 rounded-full bg-current" style={{ animationDelay: `${i * 0.15}s` }} />
+      ))}
+    </span>
   )
 }

@@ -14,7 +14,7 @@ export interface Game {
   mode: Mode
   difficulty: Difficulty
   round: number
-  /** Who draws from the hat this round. */
+  /** Who scans for tonight's location this round. */
   drawerId: string
   /** Ids that have already drawn in the current rotation cycle. */
   drawHistory: string[]
@@ -39,7 +39,7 @@ export interface RoundResult {
   villainId: string
   detectiveId: string | null
   wordA: string
-  /** Empty in Blind Villain mode (the villain had no word). */
+  /** Empty in Shadow Protocol (blind) mode: the villain had no word. */
   wordB: string
   accusedId: string | null
   winner: 'heroes' | 'villain'
@@ -130,4 +130,12 @@ export interface Stats {
   votesCast: number
   votesCorrect: number
   points: number
+}
+
+/** Public, client-writable: one live "sus" tap (voter = voterId for AI players, else createdBy). */
+export interface Sus {
+  gameId: string
+  round: number
+  targetId: string
+  voterId?: string
 }

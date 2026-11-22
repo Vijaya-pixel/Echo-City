@@ -124,7 +124,7 @@ export async function botClue(
   const { word, location, cluesSoFar } = opts
   const prompt = word
     ? `Your secret word is "${word}" (location: ${location.name}). Give ONE single-word clue that hints at it without being too obvious. Never say the word itself or part of it.`
-    : `You are secretly the villain and do not know the word. The location is ${location.name}. Blend in: give ONE single-word clue that fits the clues so far.`
+    : `You are secretly the Glitch (the odd one out) and do not know the word. The location is ${location.name}. Blend in: give ONE single-word clue that fits the clues so far.`
   const reply = await askClaude(
     tools,
     botSystem(opts.name, opts.personality, 'Reply with exactly one word and nothing else.'),

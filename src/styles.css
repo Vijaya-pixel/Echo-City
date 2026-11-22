@@ -162,14 +162,20 @@
     min-height: 100vh;
     background-color: var(--color-background);
     scroll-behavior: smooth;
+    /* No macOS/iOS rubber-band bounce: overscrolling used to drag the page
+       away from the top and show the fixed scene above the nav bar. */
+    overscroll-behavior: none;
+  }
+  html {
+    background-color: #070915; /* matches the nav bar, so no edge ever shows */
   }
 
   body {
-    font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: var(--font-sans); /* Oxanium — see themes.css */
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    font-size: 14px;
+    font-size: 16px;
     color: var(--color-foreground);
   }
 

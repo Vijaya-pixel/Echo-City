@@ -23,7 +23,6 @@ import {
   MAX_BOTS,
   MAX_PLAYERS,
   MIN_PLAYERS,
-  MODES,
   PERSONALITIES,
   TIMERS,
   botId,
@@ -119,9 +118,11 @@ const CODE_LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ' // no I/O to avoid confusion wit
 
 /** Host creates a room. Params: mode, difficulty. AI players are added later in the lobby. */
 const createRoom = action(async ({ userId, params, tools }) => {
-  const mode = str(params.mode) as Mode
+  // One ruleset: the Glitch is told who they are and gets NO word (they bluff
+  // from the others' clues; if caught they get one guess at the word). This is
+  // the 'blind' code path. classic/detective remain so older rooms still finish.
+  const mode: Mode = 'blind'
   const difficulty = str(params.difficulty) as Difficulty
-  if (!(mode in MODES)) return fail('Unknown mode.')
   if (!(difficulty in DIFFICULTIES)) return fail('Unknown difficulty.')
 
   // Try a few random codes; `games.code` is unique so a clash just fails the create.
@@ -224,7 +225,7 @@ const removeBot = action(async (ctx) => {
 /** Lets clients line their countdowns up with the server clock. */
 const serverTime = action(async () => ok({ now: Date.now() }))
 
-// ── Round start + the hat draw ──────────────────────────────────────────────
+// ── Round start + the location scan ──────────────────────────────────────────────
 
 /** Host starts the next episode (from the lobby or the reveal screen). */
 const startRound = action(async (ctx) => {
@@ -263,10 +264,14 @@ const startRound = action(async (ctx) => {
     drawnAt: 0,
     result: null,
   })
+  // One setting (Echo City), so there's nothing to choose: draw right away and
+  // go straight to the word reveal.
+  const fresh = await getGame(ctx.tools, gameId)
+  if (fresh) await performDraw(ctx.tools, fresh, players)
   return ok({ round })
 })
 
-/** The Drawer taps "Draw a chit". The tap only *triggers* the draw — the server picks. */
+/** The Drawer taps "Scan the city". The tap only *triggers* the draw — the server picks. */
 const drawChit = action(async (ctx) => {
   const s = await loadSeated(ctx)
   if (!s.ok) return s.error
@@ -284,8 +289,10 @@ async function performDraw(tools: ActionTools, game: Row<Game>, players: Row<Pla
   const g = game.data
   if (!(await takeLock(tools, `${game.id}:${g.round}:draw`))) return fail('Already drawn.')
 
-  const recent = (g.recentLocations ?? []).slice(-3)
-  const location = pick(LOCATIONS.filter((l) => !recent.includes(l.id)))
+  // Skip the most recent locations, but always leave at least one to pick.
+  const recent = (g.recentLocations ?? []).slice(-(LOCATIONS.length - 1))
+  const fresh = LOCATIONS.filter((l) => !recent.includes(l.id))
+  const location = pick(fresh.length ? fresh : LOCATIONS)
   const { pair } = await generateWordPair(tools, location, g.difficulty, g.usedWords ?? [])
   // Randomly decide which word heroes get so the "harder" word isn't always the decoy.
   const [wordA, wordB] = Math.random() < 0.5 ? pair : [pair[1], pair[0]]
@@ -372,10 +379,42 @@ async function advanceTurn(tools: ActionTools, game: Row<Game>) {
   const next = g.turnIndex + 1
   if (next >= g.totalTurns) {
     await tools.update('games', game.id, { status: 'discuss', phaseEndsAt: Date.now() + TIMERS.discuss })
+    await botsSus(tools, game)
     return
   }
   const nextPlayer = g.turnOrder[next % g.turnOrder.length]
   await tools.update('games', game.id, { turnIndex: next, phaseEndsAt: Date.now() + turnDuration(nextPlayer) })
+}
+
+/**
+ * When discussion opens, each AI player taps SUS on someone (feeds the live
+ * suspicion meter, so solo games have drama). Heroes reason over the clues
+ * like they do for votes; a self-aware villain frames a random hero.
+ * Decisions run in parallel to keep the phase change snappy.
+ */
+async function botsSus(tools: ActionTools, game: Row<Game>) {
+  const g = game.data
+  const players = await queryRows<Player>(tools, 'players', { gameId: game.id })
+  const bots = players.filter((p) => p.data.isBot)
+  if (!bots.length) return
+  const location = getLocation(g.location) ?? LOCATIONS[0]
+  const clues = await queryRows<Clue>(tools, 'clues', { gameId: game.id, round: g.round })
+  await Promise.all(
+    bots.map(async (bot) => {
+      const mine = await botAssignment(tools, game, bot.data.userId)
+      const candidates = players
+        .filter((p) => p.data.userId !== bot.data.userId)
+        .map((p) => ({ id: p.data.userId, alias: p.data.alias, clues: clues.filter((c) => c.data.playerId === p.data.userId).map((c) => c.data.text) }))
+      if (!candidates.length) return
+      const targetId =
+        mine?.data.shownRole === 'villain'
+          ? pick(candidates).id
+          : mine?.data.scanResult === 'villain'
+            ? mine.data.scanTargetId
+            : await botVote(tools, { name: bot.data.alias, personality: bot.data.personality || 'cautious', word: mine?.data.word ?? '', location, candidates })
+      await tools.create('sus', { gameId: game.id, round: g.round, targetId, voterId: bot.data.userId })
+    }),
+  )
 }
 
 /** Load one AI player's own assignment. Each bot only ever sees its own row. */
@@ -742,13 +781,13 @@ const narrate = action(async (ctx) => {
   const alias = (id: string | null) => players.find((p) => p.data.userId === id)?.data.alias ?? 'no one'
   let text: string
   if (r.reason === 'caught') {
-    text = `Episode ${g.round} is over. The villain was ${alias(r.villainId)}! The heroes' word was ${r.wordA}${
-      r.wordB ? `, and the villain's word was ${r.wordB}` : ''
+    text = `Round ${g.round} is over. The Glitch was ${alias(r.villainId)}! The heroes' word was ${r.wordA}${
+      r.wordB ? `, and the Glitch's word was ${r.wordB}` : ''
     }. Echo City is safe... for tonight.`
   } else if (r.reason === 'stole') {
-    text = `The heroes unmasked ${alias(r.villainId)}... but the villain guessed the word, ${r.wordA}! The villain steals the night.`
+    text = `The heroes unmasked ${alias(r.villainId)}... but the Glitch guessed the word, ${r.wordA}! The Glitch steals the night.`
   } else {
-    text = `The heroes accused ${alias(r.accusedId)}. But the real villain was ${alias(r.villainId)}${
+    text = `The heroes accused ${alias(r.accusedId)}. But the real Glitch was ${alias(r.villainId)}${
       r.wordB ? `, hiding behind the word ${r.wordB}` : ''
     }. Darkness falls on Echo City.`
   }

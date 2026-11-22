@@ -92,14 +92,16 @@ export function useAdvanceOnExpire(gameId: string | undefined, phaseKey: string,
 
 type Settings = { muted: boolean; crt: boolean }
 const listeners = new Set<() => void>()
-let settings: Settings = { muted: false, crt: true }
+// Scanlines off by default: they muddy the crisp pixel scenes (toggle in the room).
+let settings: Settings = { muted: false, crt: false }
 if (typeof window !== 'undefined') {
   try {
     settings = { ...settings, ...JSON.parse(localStorage.getItem('echo-settings') ?? '{}') }
   } catch {
     /* ignore bad JSON */
   }
-  document.documentElement.dataset.crt = settings.crt ? 'on' : 'off'
+  settings.crt = false // scanlines option removed; never leave it stuck on
+  document.documentElement.dataset.crt = 'off'
 }
 
 export function setSetting<K extends keyof Settings>(key: K, value: Settings[K]) {

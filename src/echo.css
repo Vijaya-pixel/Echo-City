@@ -2,120 +2,177 @@
  * Echo City pixel-art layer: fonts, pixel primitives and sprite-style motion.
  *
  * Rules this file follows:
- *  - No rounded corners, no blur. Hard 4px borders and offset shadows.
+ *  - Pixel art in scenes/sprites/display type; modern solid UI around it.
  *  - Spacing in multiples of 4px.
- *  - Animations use steps() so they move like sprites.
+ *  - UI motion is smooth (eased); only deliberate flickers use steps(1).
  *  - Everything animated is switched off under prefers-reduced-motion.
  */
 
-@import '@fontsource/press-start-2p/400.css';
-@import '@fontsource/vt323/400.css';
+/* Headlines/labels: Orbitron (wide techno). Body/UI: Oxanium (squared techno). */
+@import '@fontsource/orbitron/700.css';
+@import '@fontsource/orbitron/800.css';
+@import '@fontsource/orbitron/900.css';
+@import '@fontsource/oxanium/400.css';
+@import '@fontsource/oxanium/500.css';
+@import '@fontsource/oxanium/600.css';
+@import '@fontsource/oxanium/700.css';
 
 /* ── Base ──────────────────────────────────────────────────────────────── */
+/*
+ * Modern UI over pixel art: Oxanium (squared techno) for reading, Orbitron
+ * (wide techno) for headlines and small labels, solid panels, pill buttons. The pixel
+ * look lives in the scenes, sprites and display type, not in every border.
+ */
 
 @layer base {
   body {
-    font-family: var(--font-pixel);
-    font-size: 20px; /* VT323 runs small; 20px reads like 15px body text */
-    line-height: 1.25;
-    -webkit-font-smoothing: none;
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
   }
   h1, h2, h3, .font-display {
     font-family: var(--font-display);
-    letter-spacing: 0.02em;
-    line-height: 1.5;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    line-height: 1.4;
   }
   img, svg.pixel, canvas {
     image-rendering: pixelated;
-  }
-  * {
-    border-radius: 0 !important;
   }
   ::selection {
     background: var(--color-magenta);
     color: var(--color-background);
   }
   :focus-visible {
-    outline: 4px solid var(--color-detective);
+    outline: 2px solid var(--color-detective);
     outline-offset: 2px;
   }
 }
 
-/* ── Pixel panel: notched corners drawn with box-shadow (keeps the drop shadow) ── */
+/* Small uppercase field label ("LOAN AMOUNT" style). */
+.eyebrow {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-muted-foreground);
+}
+
+/* ── Solid panel ───────────────────────────────────────────────────────── */
 
 .px-panel {
-  --b: 4px;
-  --line: var(--color-border);
-  background: var(--color-card);
-  margin: var(--b);
+  --line: rgb(255 255 255 / 0.09);
+  --glow: transparent;
+  position: relative;
+  background: #0e1233; /* solid panel (no glass blur) */
+  border: 1px solid var(--line);
+  border-radius: 16px;
   box-shadow:
-    0 calc(-1 * var(--b)) 0 0 var(--line),
-    0 var(--b) 0 0 var(--line),
-    calc(-1 * var(--b)) 0 0 0 var(--line),
-    var(--b) 0 0 0 var(--line),
-    var(--b) calc(var(--b) * 2) 0 0 var(--color-shadow),
-    calc(var(--b) * 2) var(--b) 0 0 var(--color-shadow);
+    0 12px 32px -12px rgb(0 0 0 / 0.6),
+    0 0 0 1px var(--glow);
 }
-.px-panel-hero { --line: var(--color-hero); }
-.px-panel-villain { --line: var(--color-villain); }
-.px-panel-detective { --line: var(--color-detective); }
-.px-panel-lime { --line: var(--color-lime); }
+.px-panel-hero { --line: color-mix(in srgb, var(--color-hero) 55%, transparent); --glow: color-mix(in srgb, var(--color-hero) 12%, transparent); }
+.px-panel-villain { --line: color-mix(in srgb, var(--color-villain) 60%, transparent); --glow: color-mix(in srgb, var(--color-villain) 14%, transparent); }
+.px-panel-detective { --line: color-mix(in srgb, var(--color-detective) 55%, transparent); --glow: color-mix(in srgb, var(--color-detective) 12%, transparent); }
+.px-panel-lime { --line: color-mix(in srgb, var(--color-lime) 55%, transparent); --glow: color-mix(in srgb, var(--color-lime) 12%, transparent); }
 
-/* Small notched chip (badges, room code letters). */
+/* Small tile (room code letters, badges). */
 .px-chip {
-  clip-path: polygon(4px 0, calc(100% - 4px) 0, 100% 4px, 100% calc(100% - 4px), calc(100% - 4px) 100%, 4px 100%, 0 calc(100% - 4px), 0 4px);
+  border-radius: 10px;
+  box-shadow: 0 3px 0 0 rgb(0 0 0 / 0.35), inset 0 -3px 0 0 rgb(0 0 0 / 0.18);
 }
 
-/* ── Arcade button: depresses 2px on press ────────────────────────────── */
-
+/* ── Buttons: sci-fi HUD style ─────────────────────────────────────────── */
+/*
+ * Pale filled bar with a chamfered corner, wide uppercase techno text, a ▶
+ * arrow on the right. The chamfer is drawn with a gradient.
+ */
 .btn-arcade {
+  --btn-bg: #dfe6ff;
+  --btn-fg: #1e2f9e;
+  --btn-line: var(--color-hero);
+  --cut: 10px;
+  position: relative;
   font-family: var(--font-display);
-  font-size: 12px;
-  line-height: 1.4;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  min-height: 48px;
-  padding: 12px 20px;
-  background: var(--btn-bg, var(--color-primary));
-  color: var(--btn-fg, var(--color-primary-foreground));
-  box-shadow:
-    inset -4px -4px 0 0 var(--btn-edge, rgb(0 0 0 / 0.28)),
-    0 4px 0 0 var(--color-shadow),
-    4px 0 0 0 var(--color-shadow),
-    4px 4px 0 0 var(--color-shadow);
-  transition: transform 60ms steps(1), box-shadow 60ms steps(1);
-  clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+  min-height: 46px;
+  padding: 10px 40px 10px 22px;
+  border: 0;
+  border-radius: 0;
+  color: var(--btn-fg);
+  background: linear-gradient(-45deg, transparent var(--cut), var(--btn-bg) calc(var(--cut) + 0.5px));
+  transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1), filter 160ms ease;
 }
-.btn-arcade:hover:not(:disabled) { filter: brightness(1.08); }
-.btn-arcade:active:not(:disabled) {
-  transform: translate(2px, 2px);
-  box-shadow:
-    inset -4px -4px 0 0 var(--btn-edge, rgb(0 0 0 / 0.28)),
-    0 2px 0 0 var(--color-shadow),
-    2px 0 0 0 var(--color-shadow),
-    2px 2px 0 0 var(--color-shadow);
+/* ▶ arrow */
+.btn-arcade::after {
+  content: '';
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  width: 8px;
+  height: 12px;
+  margin-top: -6px;
+  background: currentColor;
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
 }
-.btn-arcade:disabled { opacity: 0.45; cursor: not-allowed; }
-.btn-villain { --btn-bg: var(--color-villain); --btn-fg: var(--color-villain-foreground); }
-.btn-detective { --btn-bg: var(--color-detective); --btn-fg: var(--color-detective-foreground); }
-.btn-lime { --btn-bg: var(--color-lime); --btn-fg: var(--color-lime-foreground); }
+.btn-arcade:hover:not(:disabled) { filter: brightness(1.06); transform: translateY(-1px); }
+.btn-arcade:hover:not(:disabled)::after { transform: translateX(3px); }
+.btn-arcade:active:not(:disabled) { transform: translateY(1px) scale(0.985); transition-duration: 60ms; }
+.btn-arcade:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-arcade:focus-visible { outline: 2px solid var(--color-detective); outline-offset: 3px; }
+
+/* Variants */
+.btn-villain { --btn-bg: #ffe0e8; --btn-fg: #a0123a; --btn-line: var(--color-villain); }
+.btn-detective { --btn-bg: #d9fbff; --btn-fg: #06606e; --btn-line: var(--color-detective); }
+.btn-lime { --btn-bg: #e6ffd9; --btn-fg: #2a6a10; --btn-line: var(--color-lime); }
+/* Secondary: translucent bar with a hairline frame. */
 .btn-ghost-px {
-  --btn-bg: var(--color-panel2);
-  --btn-fg: var(--color-foreground);
-  --btn-edge: var(--color-shadow);
+  --btn-fg: #dfe6ff;
+  --btn-line: rgb(223 230 255 / 0.35);
+  box-shadow: inset 0 0 0 1px rgb(223 230 255 / 0.35);
+  background: linear-gradient(-45deg, transparent var(--cut), rgb(223 230 255 / 0.07) calc(var(--cut) + 0.5px));
+}
+.btn-ghost-px:hover:not(:disabled) { background: linear-gradient(-45deg, transparent var(--cut), rgb(223 230 255 / 0.14) calc(var(--cut) + 0.5px)); }
+/* Icon-only buttons: no arrow, no underline, square-ish. */
+.btn-arcade.btn-icon { padding: 0; --cut: 7px; }
+.btn-arcade.btn-icon::after { display: none; }
+
+/* Text input. */
+.px-input {
+  font-family: var(--font-sans);
+  font-size: 16px;
+  min-height: 46px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: rgb(5 7 20 / 0.6);
+  color: var(--color-foreground);
+  border: 1px solid rgb(255 255 255 / 0.12);
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+.px-input:focus { border-color: var(--color-detective); outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-detective) 25%, transparent); }
+
+/* Pixel logo wordmark: two-tone with a hard drop shadow. */
+.logo-mark {
+  font-family: var(--font-display);
+  letter-spacing: 0.02em;
+  text-shadow: 2px 2px 0 #05060f, 3px 3px 0 rgb(0 0 0 / 0.4);
 }
 
-/* Pixel text input. */
-.px-input {
-  font-family: var(--font-pixel);
-  font-size: 22px;
-  min-height: 48px;
-  padding: 8px 12px;
-  background: var(--color-background);
-  color: var(--color-foreground);
-  border: 4px solid var(--color-border);
-  box-shadow: inset 4px 4px 0 0 var(--color-shadow);
+/* Big pixel headline with a hard shadow (hero text). */
+.headline-px {
+  font-family: var(--font-display);
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  line-height: 1.05;
+  color: #fff;
+  text-shadow: 4px 4px 0 rgb(5 6 15 / 0.85);
 }
-.px-input:focus { border-color: var(--color-detective); outline: none; }
 
 /* ── Neon title (landing) ──────────────────────────────────────────────── */
 
@@ -145,25 +202,6 @@
 }
 @keyframes blink { 50% { opacity: 0; } }
 
-/* ── Skyline parallax ──────────────────────────────────────────────────── */
-
-.skyline-layer {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 200%;
-  height: 100%;
-  display: flex;
-  animation: skyline-scroll var(--speed, 90s) steps(240) infinite;
-}
-.skyline-layer > svg { width: 50%; height: 100%; flex: none; }
-@keyframes skyline-scroll { to { transform: translateX(-50%); } }
-.sky-far { fill: var(--color-panel2); }
-.sky-near { fill: var(--color-shadow); }
-.sky-window { fill: var(--color-hero); }
-.sky-window-alt { fill: var(--color-magenta); }
-.sky-star { fill: var(--color-foreground); }
-
 /* ── CRT scanlines (toggle with <html data-crt="off">) ─────────────────── */
 
 .crt::after {
@@ -184,50 +222,53 @@ html[data-crt='off'] .crt::after { display: none; }
 
 /* ── Game motion ───────────────────────────────────────────────────────── */
 
-/* Episode title card: slides in, holds, slides out. */
-.title-card { animation: title-card 2.4s steps(12) forwards; }
-@keyframes title-card {
-  0% { transform: translateX(-110%); }
-  20%, 80% { transform: translateX(0); }
-  100% { transform: translateX(110%); }
-}
+/* Phase tracker: the active step pops in when the phase changes. */
+.phase-now { animation: phase-now 520ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+@keyframes phase-now { 0% { transform: scale(0.85); opacity: 0.4; } 60% { transform: scale(1.12); } 100% { transform: scale(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .phase-now { animation: none; } }
 
 /* Secret identity card flip. */
 .flip { perspective: 800px; }
 .flip-inner {
   position: relative;
+  /* Both faces share one grid cell, so the card is as tall as its taller face
+     (the text side can grow without spilling over what sits below it). */
+  display: grid;
   transform-style: preserve-3d;
-  transition: transform 600ms steps(6);
+  transition: transform 700ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 .flip.is-flipped .flip-inner { transform: rotateY(180deg); }
-.flip-face { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
-.flip-back { position: absolute; inset: 0; transform: rotateY(180deg); }
+.flip-face { grid-area: 1 / 1; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.flip-face > * { height: 100%; }
+.flip-back { transform: rotateY(180deg); }
 
-/* Hat: chit rises out, then unfolds. */
-.chit-rise { animation: chit-rise 900ms steps(9) forwards; }
+/* Scanner: location card rises into the beam, then unfolds. */
+.chit-rise { animation: chit-rise 900ms cubic-bezier(0.22, 1, 0.36, 1) forwards; }
 @keyframes chit-rise {
   from { transform: translateY(60px) scale(0.4); opacity: 0; }
   to { transform: translateY(-8px) scale(1); opacity: 1; }
 }
-.chit-unfold { animation: chit-unfold 500ms steps(5) 900ms both; transform-origin: top; }
+.chit-unfold { animation: chit-unfold 450ms cubic-bezier(0.22, 1, 0.36, 1) 800ms both; transform-origin: top; }
 @keyframes chit-unfold { from { transform: scaleY(0.1); } to { transform: scaleY(1); } }
-.hat-wobble { animation: hat-wobble 1.2s steps(4) infinite; }
-@keyframes hat-wobble { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-3deg); } 75% { transform: rotate(3deg); } }
+
 
 /* Countdown bar. */
-.timer-bar { transition: width 250ms steps(2); }
-.timer-danger { animation: blink 0.5s steps(1) infinite; }
+.timer-bar { transition: width 260ms linear, background-color 300ms ease; }
+.timer-danger { animation: soft-pulse 0.9s ease-in-out infinite; }
+.colon-blink { animation: colon-blink 1s steps(1) infinite; }
+@keyframes colon-blink { 50% { opacity: 0.15; } }
+@keyframes soft-pulse { 50% { opacity: 0.45; } }
 
 /* VS reveal. */
-.vs-left { animation: vs-left 500ms steps(5) both; }
-.vs-right { animation: vs-right 500ms steps(5) both; }
-.vs-pop { animation: vs-pop 400ms steps(4) 500ms both; }
+.vs-left { animation: vs-left 500ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.vs-right { animation: vs-right 500ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.vs-pop { animation: vs-pop 400ms cubic-bezier(0.34, 1.56, 0.64, 1) 500ms both; }
 @keyframes vs-left { from { transform: translateX(-120%); } to { transform: translateX(0); } }
 @keyframes vs-right { from { transform: translateX(120%); } to { transform: translateX(0); } }
 @keyframes vs-pop { from { transform: scale(3); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
 /* Screen shake when the villain is caught. */
-.shake { animation: shake 480ms steps(6); }
+.shake { animation: shake 480ms cubic-bezier(0.36, 0.07, 0.19, 0.97); }
 @keyframes shake {
   0%, 100% { transform: translate(0, 0); }
   20% { transform: translate(-8px, 4px); }
@@ -244,15 +285,15 @@ html[data-crt='off'] .crt::after { display: none; }
   width: 8px;
   height: 8px;
   background: var(--c);
-  animation: confetti-fall 2.4s steps(24) var(--d) forwards;
+  animation: confetti-fall 2.4s cubic-bezier(0.25, 0.6, 0.4, 1) var(--d) forwards;
 }
 @keyframes confetti-fall {
   to { transform: translateY(110vh) rotate(360deg); }
 }
 
 /* Gentle "it's your turn" pulse. */
-.turn-pulse { animation: turn-pulse 1s steps(2) infinite; }
-@keyframes turn-pulse { 50% { box-shadow: 0 0 0 4px var(--color-hero); } }
+.turn-pulse { animation: turn-pulse 1.6s ease-in-out infinite; }
+@keyframes turn-pulse { 50% { box-shadow: 0 0 0 3px var(--color-hero), 0 0 24px -4px var(--color-hero); } }
 
 /* ── Reduced motion: no animation at all ───────────────────────────────── */
 
@@ -262,3 +303,116 @@ html[data-crt='off'] .crt::after { display: none; }
     transition: none !important;
   }
 }
+
+/* ── Pixel scenes (PixelScene.tsx) ─────────────────────────────────────── */
+
+.scene-drift { animation: scene-drift var(--drift, 240s) linear infinite; will-change: transform; }
+@keyframes scene-drift { to { transform: translateX(var(--dist, -320px)); } }
+.scene-twinkle { animation: scene-twinkle 2.6s ease-in-out infinite; }
+@keyframes scene-twinkle { 0%, 60%, 100% { opacity: 1; } 70%, 85% { opacity: 0.25; } }
+.scene-shimmer { animation: scene-shimmer 3s ease-in-out infinite alternate; }
+@keyframes scene-shimmer { to { transform: translateX(6px); opacity: 0.4; } }
+.scene-rise { animation: scene-rise 9s linear infinite; }
+@keyframes scene-rise { to { transform: translateY(-40px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .scene-drift, .scene-twinkle, .scene-shimmer, .scene-rise { animation: none; }
+}
+
+/* Cyberpunk lighting: RGB cycling, beacons, traffic, rain. */
+/* Animating fill is far cheaper than a hue-rotate filter on big SVG groups. */
+.rgb-cycle path { animation: rgb-fill 6s linear infinite; animation-delay: var(--d, 0s); }
+@keyframes rgb-fill { 0%, 100% { fill: #ff2bd6; } 33% { fill: #22e4ff; } 66% { fill: #b45cff; } }
+.scene-blink { animation: scene-blink 1.6s ease-in-out infinite; }
+@keyframes scene-blink { 50% { opacity: 0.15; } }
+.scene-fly { animation: scene-fly var(--fly, 60s) linear infinite; will-change: transform; }
+@keyframes scene-fly { to { transform: translateX(var(--dist, 320px)); } }
+.scene-rain { animation: scene-rain 0.5s linear infinite; will-change: transform; }
+@keyframes scene-rain { to { transform: translate(-3px, 9px); } }
+@media (prefers-reduced-motion: reduce) {
+  .rgb-cycle path, .scene-blink, .scene-fly, .scene-rain { animation: none; }
+}
+
+/* ── Difficulty slider ─────────────────────────────────────────────────── */
+
+.difficulty-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 22px;
+  background: transparent;
+  cursor: pointer;
+}
+.difficulty-slider::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent) 0 var(--fill), rgb(255 255 255 / 0.1) var(--fill) 100%);
+  box-shadow: 0 0 14px -4px var(--accent);
+}
+.difficulty-slider::-moz-range-track {
+  height: 8px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.1);
+}
+.difficulty-slider::-moz-range-progress {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+.difficulty-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 22px;
+  height: 22px;
+  margin-top: -7px;
+  border-radius: 999px;
+  background: #fff;
+  border: 4px solid var(--accent);
+  box-shadow: 0 0 0 4px rgb(0 0 0 / 0.25), 0 0 16px -2px var(--accent);
+  transition: transform 120ms ease;
+}
+.difficulty-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: #fff;
+  border: 4px solid var(--accent);
+  box-shadow: 0 0 16px -2px var(--accent);
+}
+.difficulty-slider:active::-webkit-slider-thumb { transform: scale(1.15); }
+.difficulty-slider:focus-visible { outline: none; }
+.difficulty-slider:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 4px var(--color-detective), 0 0 16px -2px var(--accent); }
+
+/* ── Interaction polish ────────────────────────────────────────────────── */
+
+/* Clickable cards / tiles: gentle lift on hover, press on click. */
+.tap {
+  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 200ms ease, border-color 160ms ease, background-color 160ms ease;
+}
+.tap:hover:not(:disabled) { transform: translateY(-2px); }
+.tap:active:not(:disabled) { transform: translateY(0) scale(0.985); transition-duration: 60ms; }
+
+/* SUS toggle: a quick pop when it turns on. */
+.sus-pop[aria-pressed='true'] { animation: sus-pop 320ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+@keyframes sus-pop { 0% { transform: scale(0.85); } 60% { transform: scale(1.12); } 100% { transform: scale(1); } }
+
+/* New phase content eases in instead of snapping. */
+.phase-enter { animation: phase-enter 380ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes phase-enter { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+/* Nav underline glides in. */
+.nav-underline { transform: scaleX(0); transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1); }
+[aria-current='page'] .nav-underline { transform: scaleX(1); }
+
+@media (prefers-reduced-motion: reduce) {
+  .tap, .btn-arcade { transition: none; }
+  .tap:hover, .btn-arcade:hover { transform: none; }
+  .sus-pop[aria-pressed='true'], .phase-enter { animation: none; }
+}
+
+/* Signal loader bars */
+.signal-bar { height: 20%; animation: signal-bar 1s ease-in-out infinite; }
+@keyframes signal-bar { 0%, 100% { height: 20%; opacity: 0.5; } 50% { height: 100%; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .signal-bar { animation: none; height: 60%; } }
+
+/* Inline working dots */
+.working-dot { animation: working-dot 0.9s ease-in-out infinite; }
+@keyframes working-dot { 0%, 100% { opacity: 0.25; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-3px); } }
+@media (prefers-reduced-motion: reduce) { .working-dot { animation: none; opacity: 0.7; } }
