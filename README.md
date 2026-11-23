@@ -84,16 +84,16 @@ npm run test:unit
 npm run build
 ```
 
-## Deploy
+## Updating the live site
+
+Echo City is already live at https://echocity.app.space. After changing the code, publish a new release with:
 
 ```sh
 git push
-npx deepspace auth whoami
-npx deepspace deploy         # https://echocity.app.space
-npx deepspace logs --since 15m
+npx deepspace deploy
 ```
 
-To turn on paid AI (optional): set `AI_ENABLED = "true"` for the app's environment and redeploy.
+Optional: to turn on the paid AI players and narrator, set `AI_ENABLED = "true"` for the app and redeploy.
 
 ## Known gaps / next steps
 
