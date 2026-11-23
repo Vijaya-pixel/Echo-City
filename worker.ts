@@ -109,6 +109,11 @@ export interface Env extends DOBindings<typeof __DO_MANIFEST__> {
   DEEPSPACE_APP_ID: string
   OWNER_USER_ID: string
   /**
+   * Paid AI (Claude bots + ElevenLabs narrator). Off unless set to "true".
+   * Default: rule-based bots and the browser's free speech synthesis.
+   */
+  AI_ENABLED?: string
+  /**
    * Long-lived owner JWT used for developer-billed server calls. User-billed
    * calls always forward the signed-in caller's JWT instead.
    */

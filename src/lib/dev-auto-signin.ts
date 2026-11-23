@@ -5,6 +5,7 @@
  * (in the gitignored .env.development.local). Production builds never include
  * the credentials and keep the normal sign-in flow.
  *
+ * Sign out pauses auto sign-in for the tab; `?player=` resumes it.
  * Pick a player with `?player=bob` in the URL. The
  * choice is remembered per tab (sessionStorage); the session cookie is shared
  * per browser, so to play as several heroes at once use separate browser
@@ -36,15 +37,22 @@ function findPlayer(name: string | null): DevPlayer | undefined {
   return DEV_PLAYERS.find((p) => p.name.toLowerCase() === name.toLowerCase())
 }
 
-/** The player this tab should be signed in as. */
-function desiredPlayer(): DevPlayer {
+const SIGNED_OUT_KEY = 'echocity:dev-signed-out'
+
+/** The player this tab should be signed in as (undefined after Sign out). */
+function desiredPlayer(): DevPlayer | undefined {
   const fromUrl = findPlayer(new URLSearchParams(window.location.search).get('player'))
   if (fromUrl) {
+    sessionStorage.removeItem(SIGNED_OUT_KEY)
     sessionStorage.setItem(STORAGE_KEY, fromUrl.name)
     return fromUrl
   }
+  // After Sign out, stay signed out in this tab so the real sign-in screen shows.
+  if (sessionStorage.getItem(SIGNED_OUT_KEY)) return undefined
   return findPlayer(sessionStorage.getItem(STORAGE_KEY)) ?? DEV_PLAYERS[0]
 }
+
+
 
 /**
  * Signs the desired dev player in (or swaps to them) once auth has loaded.

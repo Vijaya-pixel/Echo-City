@@ -37,10 +37,7 @@ export interface Game {
 
 export interface RoundResult {
   villainId: string
-  detectiveId: string | null
   wordA: string
-  /** Empty in Shadow Protocol (blind) mode: the villain had no word. */
-  wordB: string
   accusedId: string | null
   winner: 'heroes' | 'villain'
   reason: 'caught' | 'escaped' | 'stole'
@@ -73,13 +70,11 @@ export interface Assignment {
   gameId: string
   round: number
   ownerId: string
-  /** 'unknown' (classic), 'hero', 'villain' (blind, self-aware), 'detective'. */
-  shownRole: 'unknown' | 'hero' | 'villain' | 'detective'
+  /** 'hero' (has the word) or 'villain' (the Glitch: knows it, has no word). */
+  shownRole: 'hero' | 'villain'
   /** Empty for the blind villain. */
   word: string
   category: string
-  scanTargetId: string
-  scanResult: '' | 'villain' | 'hero'
 }
 
 /** SERVER-ONLY (no client can read): the truth for a round. */
@@ -87,9 +82,7 @@ export interface Secret {
   gameId: string
   round: number
   villainId: string
-  detectiveId: string
   wordA: string
-  wordB: string
 }
 
 /** PRIVATE (read: 'own'): one vote. */
@@ -114,6 +107,8 @@ export interface Chat {
   gameId: string
   round: number
   text: string
+  /** Server-only: set when an AI player said this line (shown under its alias). */
+  speakerId?: string
 }
 
 /** Public: lifetime stats per user. */
@@ -125,8 +120,6 @@ export interface Stats {
   heroWins: number
   villainGames: number
   villainWins: number
-  detectiveGames: number
-  detectiveWins: number
   votesCast: number
   votesCorrect: number
   points: number

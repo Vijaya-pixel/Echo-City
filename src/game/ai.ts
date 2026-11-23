@@ -1,9 +1,9 @@
 /**
  * Server-side AI helpers. Called only from server actions.
  *
- * Every function here has a non-AI fallback: if Claude errors, times out or
- * returns junk, the game still continues using the built-in word lists and
- * simple bot behaviour. AI makes the game more varied; it is never required.
+ * Only used when the server's AI_ENABLED flag is "true" (off by default; the
+ * game then uses the rule-based bots in ./bots.ts). Every function also has a
+ * non-AI fallback if Claude errors, times out or returns junk.
  */
 
 import type { ActionTools } from 'deepspace/worker'
@@ -82,9 +82,10 @@ export async function generateWordPair(
   location: Location,
   difficulty: Difficulty,
   usedWords: string[],
+  useAi = false,
 ): Promise<{ pair: WordPair; source: 'ai' | 'fallback' }> {
   const used = new Set(usedWords.map(normalizeWord))
-  const reply = await askClaude(
+  const reply = !useAi ? null : await askClaude(
     tools,
     'You create word pairs for a family-friendly social deduction party game. Reply with strict JSON only, no prose.',
     [

@@ -1,4 +1,3 @@
-import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
@@ -10,17 +9,7 @@ import { prerender } from './prerender.ts'
 
 const appDir = fileURLToPath(new URL('.', import.meta.url))
 
-// Opt-in local HTTPS (DEV_HTTPS=1). Safari refuses the SDK's `__Secure-` session
-// cookie over plain http://localhost, so sign-in silently fails there; serving
-// dev over HTTPS fixes it. Certs live in the gitignored .certs/ directory.
-const certDir = fileURLToPath(new URL('./.certs/', import.meta.url))
-const devHttps =
-  process.env.DEV_HTTPS === '1' && existsSync(`${certDir}localhost.pem`)
-    ? { key: readFileSync(`${certDir}localhost-key.pem`), cert: readFileSync(`${certDir}localhost.pem`) }
-    : undefined
-
 export default defineConfig({
-  server: devHttps ? { https: devHttps } : {},
   plugins: [
     react(),
     generouted(),

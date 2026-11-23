@@ -26,6 +26,11 @@ import { APP_NAME, SCOPE_ID } from '../../constants'
 import { schemas } from '../../schemas'
 import { useDevAutoSignIn } from '../../lib/dev-auto-signin'
 
+const NO_DEV = { pending: false, error: null }
+// import.meta.env.DEV is a build-time constant: in production this resolves to
+// the no-op, so the dev auto sign-in module is compiled out of the bundle.
+const useDevSignIn = import.meta.env.DEV ? useDevAutoSignIn : () => NO_DEV
+
 export default function AppLayout() {
   return (
     <DeepSpaceAuthProvider>
@@ -58,7 +63,7 @@ export default function AppLayout() {
 function AuthBoot({ children }: { children: ReactNode }) {
   const { isLoaded } = useAuthStatus()
   // Local dev only: silently sign in a test player (see lib/dev-auto-signin).
-  const devSignIn = useDevAutoSignIn()
+  const devSignIn = useDevSignIn()
   // Record writes (`create`/`put`/`remove`) are fire-and-forget — they resolve
   // before the server answers, so a denied or invalid write only surfaces
   // through onWriteError. Route rejections to toasts so they're never a

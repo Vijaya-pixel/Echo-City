@@ -1,6 +1,6 @@
 /**
  * Phase screens, part 1: lobby, hat draw, clues, discussion (+ chat) and the
- * detective scan. Each screen reads live state passed in as `RoomState` and
+ * Each screen reads live state passed in as `RoomState` and
  * only ever *asks* the server to change things via callAction.
  */
 
@@ -205,10 +205,8 @@ export function ChitReveal({ s }: { s: RoomState }) {
 export function WordStrip({ a }: { a: Assignment | undefined }) {
   if (!a) return <div className="px-panel p-3 text-center text-muted-foreground">Dealing your card...</div>
   const note: Record<Assignment['shownRole'], string> = {
-    unknown: 'Someone has a different word. It might be you.',
     hero: 'You are a hero. One player is the Glitch with no word.',
     villain: 'You are the Glitch. No word: bluff from the clues.',
-    detective: 'You are the detective: you can scan one player.',
   }
   return (
     <div className={`px-panel ${a.shownRole === 'villain' ? 'px-panel-villain' : 'px-panel-hero'} flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3`}>
@@ -345,7 +343,6 @@ export function CluePhase({ s }: { s: RoomState }) {
         </div>
       </section>
 
-      <DetectiveScan s={s} />
       <ClueBoard s={s} />
     </div>
   )
@@ -368,8 +365,7 @@ export function DiscussPhase({ s }: { s: RoomState }) {
           )}
         </div>
         <WordStrip a={s.assignment} />
-        <DetectiveScan s={s} />
-        <ClueBoard s={s} />
+          <ClueBoard s={s} />
       </div>
       <ChatBox s={s} />
     </div>
@@ -396,8 +392,10 @@ export function ChatBox({ s }: { s: RoomState }) {
     e.preventDefault()
     const t = text.trim().slice(0, 200)
     if (!t) return
-    await create({ gameId, round, text: t })
+    const chatId = await create({ gameId, round, text: t })
     setText('')
+    // Lets an AI player reply if this line mentions it by name.
+    void callAction('chatPing', { gameId, chatId })
   }
 
   return (
@@ -407,7 +405,9 @@ export function ChatBox({ s }: { s: RoomState }) {
         {records.length === 0 && <p className="text-muted-foreground">Whose clue didn't fit? Say who you suspect, and tap SUS on them.</p>}
         {records.map((m) => (
           <p key={m.recordId} className="break-words leading-tight">
-            <span className={m.createdBy === s.myId ? 'text-detective' : 'text-hero'}>{s.alias(m.createdBy)}:</span>{' '}
+            <span className={m.data.speakerId ? 'text-[#ff9ad6]' : m.createdBy === s.myId ? 'text-detective' : 'text-hero'}>
+              {s.alias(m.data.speakerId || m.createdBy)}:
+            </span>{' '}
             {m.data.text}
           </p>
         ))}
@@ -419,45 +419,6 @@ export function ChatBox({ s }: { s: RoomState }) {
           Send
         </Button>
       </form>
-    </div>
-  )
-}
-
-// ── Detective scan ──────────────────────────────────────────────────────────
-
-/** Only rendered for the Detective (their own assignment row says so). */
-export function DetectiveScan({ s }: { s: RoomState }) {
-  const a = s.assignment
-  const { busy, run } = useAction()
-  const targets = useMemo(() => s.players.filter((p) => p.data.userId !== s.myId), [s.players, s.myId])
-  if (!a || a.shownRole !== 'detective') return null
-  if (a.scanResult) {
-    return (
-      <div className="px-panel px-panel-detective p-3 text-center">
-        <div className="font-display text-[10px] text-detective">SCAN RESULT</div>
-        <p className="mt-2">
-          {s.alias(a.scanTargetId)} is{' '}
-          <span className={a.scanResult === 'villain' ? 'text-villain' : 'text-lime'}>{a.scanResult === 'villain' ? 'THE VILLAIN' : 'A HERO'}</span>
-        </p>
-      </div>
-    )
-  }
-  return (
-    <div className="px-panel px-panel-detective p-3">
-      <div className="mb-2 font-display text-[10px] text-detective">SCAN ONE PLAYER</div>
-      <div className="flex flex-wrap gap-2">
-        {targets.map((p) => (
-          <Button
-            key={p.recordId}
-            variant="detective"
-            size="sm"
-            disabled={busy}
-            onClick={() => run('scan', { gameId: s.game.recordId, targetId: p.data.userId })}
-          >
-            {p.data.alias}
-          </Button>
-        ))}
-      </div>
     </div>
   )
 }

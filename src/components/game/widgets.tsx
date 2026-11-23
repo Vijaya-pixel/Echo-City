@@ -82,10 +82,8 @@ export function TimerBar({ remaining, label }: { remaining: number; total: numbe
 // ── Secret identity card ────────────────────────────────────────────────────
 
 const ROLE_COPY: Record<Assignment['shownRole'], { title: string; tone: string; note: string; short: string }> = {
-  unknown: { title: '', tone: 'px-panel-hero text-hero', note: 'One player has a different word. Maybe you.', short: 'One player has a different word.' },
   hero: { title: '', tone: 'px-panel-hero text-hero', note: 'The Glitch has no word. Find them.', short: 'Find the player with no word.' },
   villain: { title: 'YOU ARE THE GLITCH', tone: 'px-panel-villain text-villain', note: 'You have no word. Read the clues, bluff, and don\'t get caught.', short: 'No word. Bluff from the clues.' },
-  detective: { title: 'YOU ARE THE DETECTIVE', tone: 'px-panel-detective text-detective', note: 'You can scan one player.', short: 'Scan one player.' },
 }
 
 /** Flips over on mount (sprite-style). Tap to hide/show so neighbours can't peek. */
@@ -112,11 +110,6 @@ export function SecretCard({ assignment, compact = false }: { assignment: Assign
         <div className="font-display text-2xl font-black text-villain">NO WORD</div>
       )}
       <p className="max-w-xs text-muted-foreground">{compact ? role.short : role.note}</p>
-      {assignment.scanResult && (
-        <div className={`font-display text-[10px] ${assignment.scanResult === 'villain' ? 'text-villain' : 'text-lime'}`}>
-          SCAN: {assignment.scanResult.toUpperCase()}
-        </div>
-      )}
     </div>
   )
   return (

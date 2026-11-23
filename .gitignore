@@ -14,8 +14,10 @@ src/modals.tsx
 .claude/launch.json
 .claude/worktrees
 
-# Local dev HTTPS certs
+# Keys / certificates (never commit)
 .certs/
+*.pem
+*.key
 
 # Local env overrides (dev test-account credentials)
 .env*.local

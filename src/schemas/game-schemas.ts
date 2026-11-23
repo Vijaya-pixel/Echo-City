@@ -89,8 +89,6 @@ export const assignmentsSchema: CollectionSchema = {
     text('shownRole'),
     text('word'),
     text('category'),
-    text('scanTargetId'),
-    text('scanResult'),
   ],
   ownerField: 'ownerId',
   uniqueOn: ['gameId', 'round', 'ownerId'],
@@ -109,7 +107,7 @@ export const votesSchema: CollectionSchema = {
 
 export const secretsSchema: CollectionSchema = {
   name: 'secrets',
-  columns: [text('gameId'), num('round'), text('villainId'), text('detectiveId'), text('wordA'), text('wordB')],
+  columns: [text('gameId'), num('round'), text('villainId'), text('wordA')],
   uniqueOn: ['gameId', 'round'],
   permissions: SERVER_ONLY,
 }
@@ -123,7 +121,8 @@ export const cluesSchema: CollectionSchema = {
 
 export const chatsSchema: CollectionSchema = {
   name: 'chats',
-  columns: [text('gameId', { required: true }), num('round'), text('text', { required: true, maxLength: 200 })],
+  // speakerId is server-only (not in writableFields): set by bot chat actions.
+  columns: [text('gameId', { required: true }), num('round'), text('text', { required: true, maxLength: 200 }), text('speakerId')],
   permissions: {
     viewer: NONE,
     member: { read: true, create: true, update: false, delete: false, writableFields: ['gameId', 'round', 'text'] },
@@ -152,8 +151,6 @@ export const statsSchema: CollectionSchema = {
     num('heroWins'),
     num('villainGames'),
     num('villainWins'),
-    num('detectiveGames'),
-    num('detectiveWins'),
     num('votesCast'),
     num('votesCorrect'),
     num('points'),

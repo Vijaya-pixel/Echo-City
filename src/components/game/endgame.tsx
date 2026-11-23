@@ -73,7 +73,7 @@ export function VotePhase({ s }: { s: RoomState }) {
   )
 }
 
-// ── Last guess (Shadow Protocol / blind mode) ─────────────────────────────────────────────
+// ── Last guess (the caught Glitch) ─────────────────────────────────────────────
 
 export function LastGuessPhase({ s }: { s: RoomState }) {
   const amVillain = s.assignment?.shownRole === 'villain'
@@ -174,7 +174,7 @@ export function RevealPhase({ s }: { s: RoomState }) {
               Heroes: <b className="text-foreground">{r.wordA}</b>
             </span>
             <span className="rounded-full border border-villain/50 px-3 py-1">
-              Glitch: <b className="text-foreground">{r.wordB || 'no word'}</b>
+              Glitch: <b className="text-foreground">no word</b>
             </span>
           </div>
         </div>
@@ -216,58 +216,49 @@ export function RevealPhase({ s }: { s: RoomState }) {
   )
 }
 
+/** The narrator's line for this round (spoken by the browser's free voice). */
+function narration(s: RoomState): string {
+  const r = s.game.data.result
+  if (!r) return ''
+  const name = (id: string | null) => (id ? (s.players.find((p) => p.data.userId === id)?.data.alias ?? 'someone') : 'no one')
+  if (r.reason === 'caught') return `The Glitch was ${name(r.villainId)}! The word was ${r.wordA}. Echo City is safe, for tonight.`
+  if (r.reason === 'stole') return `${name(r.villainId)} was caught, but guessed the word, ${r.wordA}. The Glitch steals the night.`
+  return `The Glitch, ${name(r.villainId)}, got away. The word was ${r.wordA}. Darkness falls on Echo City.`
+}
+
+function speak(text: string) {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window) || !text) return
+  window.speechSynthesis.cancel()
+  const u = new SpeechSynthesisUtterance(text)
+  u.rate = 0.95
+  u.pitch = 0.8
+  window.speechSynthesis.speak(u)
+}
+
 /**
- * Plays the ElevenLabs narration once per reveal (unless muted). The server
- * only allows one narration per player per round, so we keep the audio here
- * for replays instead of re-requesting it.
+ * Reads the result aloud once per round using the browser's built-in speech
+ * synthesis (free; no AI service). Respects the mute toggle; the button replays.
  */
 function Narrator({ s }: { s: RoomState }) {
   const { muted } = useSettings()
-  const [audioUrl, setAudioUrl] = useState<string | null>(null)
-  const [state, setState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
-  const audioRef = useRef<HTMLAudioElement | null>(null)
-  const requested = useRef(false)
   const round = s.game.data.round
-
-  const load = async (autoplay: boolean) => {
-    if (requested.current) return
-    requested.current = true
-    setState('loading')
-    const r = await callAction<{ audio: string }>('narrate', { gameId: s.game.recordId })
-    if (!r.success) {
-      setState('error')
-      return
-    }
-    setAudioUrl(r.data.audio)
-    setState('ready')
-    if (autoplay) {
-      const a = new Audio(r.data.audio)
-      audioRef.current = a
-      a.play().catch(() => {
-        /* autoplay blocked: the replay button still works */
-      })
-    }
-  }
+  const supported = typeof window !== 'undefined' && 'speechSynthesis' in window
 
   useEffect(() => {
-    if (!muted) void load(true)
-    // Only once per round.
+    if (!muted) speak(narration(s))
+    return () => {
+      if (supported) window.speechSynthesis.cancel()
+    }
+    // Once per round.
   }, [round])
 
   useEffect(() => {
-    if (muted) audioRef.current?.pause()
-  }, [muted])
-
-  const play = () => {
-    if (!audioUrl) return void load(true)
-    audioRef.current?.pause()
-    audioRef.current = new Audio(audioUrl)
-    void audioRef.current.play().catch(() => undefined)
-  }
+    if (muted && supported) window.speechSynthesis.cancel()
+  }, [muted, supported])
 
   return (
-    <Button variant="secondary" size="icon" onClick={play} disabled={muted || state === 'loading' || state === 'error'} aria-label="Replay narrator" title={state === 'error' ? 'Narrator unavailable' : 'Replay narrator'}>
-      {state === 'loading' ? '…' : <Volume2 className="h-4 w-4" aria-hidden />}
+    <Button variant="secondary" size="icon" onClick={() => speak(narration(s))} disabled={muted || !supported} aria-label="Replay narrator" title={muted ? 'Sound is off' : 'Replay narrator'}>
+      <Volume2 className="h-4 w-4" aria-hidden />
     </Button>
   )
 }

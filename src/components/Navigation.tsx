@@ -12,7 +12,6 @@ import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { AuthOverlay, useAuthProfileReady, signOut } from 'deepspace'
 import { ChevronDown, LogOut, Menu, X } from 'lucide-react'
-import { DEV_AUTO_SIGNIN } from '../lib/dev-auto-signin'
 import { APP_NAME } from '../constants'
 import { Logo, TechnoText } from './Logo'
 import type { Role } from '../constants'
@@ -29,6 +28,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from './ui'
+
+/** Sign out. In local dev, also pause auto sign-in for this tab (compiled out in production). */
+async function signOutAndStayOut() {
+  if (import.meta.env.DEV) sessionStorage.setItem('echocity:dev-signed-out', '1')
+  await signOut()
+}
 
 export default function Navigation() {
   const { isLoaded, isSignedIn, user, userLoading } = useAuthProfileReady({ requireUser: true })
@@ -125,14 +130,11 @@ export default function Navigation() {
                     {user.email}
                   </div>
                 </DropdownMenuLabel>
-                {!DEV_AUTO_SIGNIN && <DropdownMenuSeparator />}
-                {/* Local dev signs in automatically, so Sign out would just sign you back in. */}
-                {!DEV_AUTO_SIGNIN && (
-                  <DropdownMenuItem onClick={() => signOut()}>
-                    <LogOut aria-hidden />
-                    Sign out
-                  </DropdownMenuItem>
-                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => void signOutAndStayOut()}>
+                  <LogOut aria-hidden />
+                  Sign out
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (

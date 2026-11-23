@@ -34,10 +34,12 @@ import {
   pick,
   shuffle,
   type Difficulty,
+  type Location,
   type Mode,
 } from '../game/data'
-import type { Assignment, Clue, Game, Player, RoundResult, Secret, Stats, Vote } from '../game/types'
+import type { Assignment, Chat, Clue, Game, Player, RoundResult, Secret, Stats, Sus, Vote } from '../game/types'
 import { botClue, botLastGuess, botVote, clueLeaksWord, generateWordPair, narrate as narrateSpeech } from '../game/ai'
+import { ruleClue, ruleGuess, ruleOpener, rulePick, ruleReply, type Candidate } from '../game/bots'
 
 type Ctx = ActionContext<Env>
 type Row<T> = { id: string; data: T }
@@ -47,9 +49,16 @@ type Row<T> = { id: string; data: T }
 const ok = <T>(data: T): ActionResult<T> => ({ success: true, data })
 const fail = (error: string): ActionResult<never> => ({ success: false, error })
 
+/**
+ * Paid AI on/off, from the server-side AI_ENABLED flag (default off). Set per
+ * request from env; env is identical across requests, so a module flag is safe.
+ */
+let AI_ON = false
+
 /** Wrap a handler so an unexpected throw becomes a clean error result. */
 function action(fn: (ctx: Ctx) => Promise<ActionResult<unknown>>): ActionHandler<Env> {
   return async (ctx) => {
+    AI_ON = ctx.env?.AI_ENABLED === 'true'
     try {
       return await fn(ctx)
     } catch (err) {
@@ -109,7 +118,9 @@ const currentTurnPlayer = (g: Game) => g.turnOrder[g.turnIndex % g.turnOrder.len
 async function displayName(tools: ActionTools, userId: string): Promise<string> {
   // Actions read full user rows (email included) — we only ever take `name`.
   const r = await tools.get<{ name?: string }>('users', userId)
-  return (r.success && r.data.record.data.name) || 'Hero'
+  const name = (r.success && r.data.record.data.name) || ''
+  // Never let an email-shaped name reach other players (stats, leaderboard).
+  return name && !name.includes('@') ? name.slice(0, 40) : 'Hero'
 }
 
 // ── Room setup ──────────────────────────────────────────────────────────────
@@ -118,10 +129,9 @@ const CODE_LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ' // no I/O to avoid confusion wit
 
 /** Host creates a room. Params: mode, difficulty. AI players are added later in the lobby. */
 const createRoom = action(async ({ userId, params, tools }) => {
-  // One ruleset: the Glitch is told who they are and gets NO word (they bluff
-  // from the others' clues; if caught they get one guess at the word). This is
-  // the 'blind' code path. classic/detective remain so older rooms still finish.
-  const mode: Mode = 'blind'
+  // One ruleset (Night Shift): the Glitch is told who they are and gets NO word.
+  // They bluff from the others' clues; if caught they get one guess at the word.
+  const mode: Mode = 'nightshift'
   const difficulty = str(params.difficulty) as Difficulty
   if (!(difficulty in DIFFICULTIES)) return fail('Unknown difficulty.')
 
@@ -282,7 +292,7 @@ const drawChit = action(async (ctx) => {
 
 /**
  * Picks tonight's location (server-random, avoiding the last 3), generates the
- * word pair, secretly chooses the villain (and detective), deals private cards
+ * secret word, secretly chooses the Glitch, deals private cards
  * and opens the clue phase.
  */
 async function performDraw(tools: ActionTools, game: Row<Game>, players: Row<Player>[]): Promise<ActionResult<unknown>> {
@@ -293,41 +303,26 @@ async function performDraw(tools: ActionTools, game: Row<Game>, players: Row<Pla
   const recent = (g.recentLocations ?? []).slice(-(LOCATIONS.length - 1))
   const fresh = LOCATIONS.filter((l) => !recent.includes(l.id))
   const location = pick(fresh.length ? fresh : LOCATIONS)
-  const { pair } = await generateWordPair(tools, location, g.difficulty, g.usedWords ?? [])
-  // Randomly decide which word heroes get so the "harder" word isn't always the decoy.
-  const [wordA, wordB] = Math.random() < 0.5 ? pair : [pair[1], pair[0]]
+  const { pair } = await generateWordPair(tools, location, g.difficulty, g.usedWords ?? [], AI_ON)
+  // The heroes' word: either half of the pair (the Glitch gets no word).
+  const wordA = pick(pair)
 
   const ids = players.map((p) => p.data.userId)
   const villainId = pick(ids)
-  let detectiveId = ''
-  if (g.mode === 'detective') {
-    // Any non-villain can be the Detective, including an AI player.
-    detectiveId = pick(ids.filter((id) => id !== villainId))
-  }
 
-  await tools.create('secrets', { gameId: game.id, round: g.round, villainId, detectiveId, wordA, wordB })
+  await tools.create('secrets', { gameId: game.id, round: g.round, villainId, wordA })
 
   // Each assignment is owned by one player, so only that player's browser receives it.
   await Promise.all(
     ids.map((ownerId) => {
       const isVillain = ownerId === villainId
-      let shownRole: Assignment['shownRole'] = 'unknown'
-      let word = isVillain ? wordB : wordA
-      if (g.mode === 'blind') {
-        shownRole = isVillain ? 'villain' : 'hero'
-        word = isVillain ? '' : wordA
-      } else if (g.mode === 'detective' && ownerId === detectiveId) {
-        shownRole = 'detective'
-      }
       const row: Assignment = {
         gameId: game.id,
         round: g.round,
         ownerId,
-        shownRole,
-        word,
+        shownRole: isVillain ? 'villain' : 'hero',
+        word: isVillain ? '' : wordA,
         category: location.name,
-        scanTargetId: '',
-        scanResult: '',
       }
       return tools.create('assignments', row as unknown as Record<string, unknown>)
     }),
@@ -340,7 +335,7 @@ async function performDraw(tools: ActionTools, game: Row<Game>, players: Row<Pla
     location: location.id,
     category: location.name,
     recentLocations: [...(g.recentLocations ?? []), location.id].slice(-5),
-    usedWords: [...(g.usedWords ?? []), wordA, wordB].slice(-60),
+    usedWords: [...(g.usedWords ?? []), ...pair].slice(-60),
     turnOrder,
     turnIndex: 0,
     totalTurns: turnOrder.length * DIFFICULTIES[g.difficulty].laps,
@@ -386,11 +381,42 @@ async function advanceTurn(tools: ActionTools, game: Row<Game>) {
   await tools.update('games', game.id, { turnIndex: next, phaseEndsAt: Date.now() + turnDuration(nextPlayer) })
 }
 
+/** Everyone except `selfId`, with their clues and SUS taps (for bot decisions). */
+function candidatesFor(selfId: string, players: Row<Player>[], clues: Row<Clue>[], sus: Row<Sus>[]): Array<Candidate & { alias: string }> {
+  return players
+    .filter((p) => p.data.userId !== selfId)
+    .map((p) => ({
+      id: p.data.userId,
+      alias: p.data.alias,
+      clues: clues.filter((c) => c.data.playerId === p.data.userId).map((c) => c.data.text),
+      sus: sus.filter((x) => x.data.targetId === p.data.userId).length,
+    }))
+}
+
+/** One bot's pick (vote or SUS): rule-based by default, Claude if AI_ENABLED. */
+async function botPick(tools: ActionTools, bot: Row<Player>, word: string, isGlitch: boolean, cands: Array<Candidate & { alias: string }>, location: Location) {
+  if (isGlitch || !AI_ON) return rulePick(isGlitch ? '' : word, cands, Math.random)
+  return botVote(tools, { name: bot.data.alias, personality: bot.data.personality || 'cautious', word, location, candidates: cands })
+}
+
 /**
- * When discussion opens, each AI player taps SUS on someone (feeds the live
- * suspicion meter, so solo games have drama). Heroes reason over the clues
- * like they do for votes; a self-aware villain frames a random hero.
- * Decisions run in parallel to keep the phase change snappy.
+ * Post one bot chat line. A bot may speak at most 3 times per round; each slot
+ * is a lock, so concurrent triggers can never double-post. `speakerId` is a
+ * server-only column, so the line is shown under the bot's alias.
+ */
+async function botSay(tools: ActionTools, game: Row<Game>, botId: string, text: string): Promise<boolean> {
+  for (let slot = 0; slot < 3; slot++) {
+    if (await takeLock(tools, `${game.id}:${game.data.round}:chat:${botId}:${slot}`)) {
+      await tools.create('chats', { gameId: game.id, round: game.data.round, text, speakerId: botId })
+      return true
+    }
+  }
+  return false
+}
+
+/**
+ * When discussion opens, each AI player taps SUS on its suspect and posts one
+ * opening chat line about them, so solo games have some drama.
  */
 async function botsSus(tools: ActionTools, game: Row<Game>) {
   const g = game.data
@@ -398,21 +424,19 @@ async function botsSus(tools: ActionTools, game: Row<Game>) {
   const bots = players.filter((p) => p.data.isBot)
   if (!bots.length) return
   const location = getLocation(g.location) ?? LOCATIONS[0]
-  const clues = await queryRows<Clue>(tools, 'clues', { gameId: game.id, round: g.round })
+  const [clues, sus] = await Promise.all([
+    queryRows<Clue>(tools, 'clues', { gameId: game.id, round: g.round }),
+    queryRows<Sus>(tools, 'sus', { gameId: game.id, round: g.round }),
+  ])
   await Promise.all(
     bots.map(async (bot) => {
       const mine = await botAssignment(tools, game, bot.data.userId)
-      const candidates = players
-        .filter((p) => p.data.userId !== bot.data.userId)
-        .map((p) => ({ id: p.data.userId, alias: p.data.alias, clues: clues.filter((c) => c.data.playerId === p.data.userId).map((c) => c.data.text) }))
-      if (!candidates.length) return
-      const targetId =
-        mine?.data.shownRole === 'villain'
-          ? pick(candidates).id
-          : mine?.data.scanResult === 'villain'
-            ? mine.data.scanTargetId
-            : await botVote(tools, { name: bot.data.alias, personality: bot.data.personality || 'cautious', word: mine?.data.word ?? '', location, candidates })
+      const cands = candidatesFor(bot.data.userId, players, clues, sus)
+      if (!cands.length) return
+      const targetId = await botPick(tools, bot, mine?.data.word ?? '', mine?.data.shownRole === 'villain', cands, location)
       await tools.create('sus', { gameId: game.id, round: g.round, targetId, voterId: bot.data.userId })
+      const alias = cands.find((c) => c.id === targetId)?.alias ?? 'someone'
+      await botSay(tools, game, bot.data.userId, ruleOpener(bot.data.personality || 'cautious', alias, Math.random))
     }),
   )
 }
@@ -439,32 +463,16 @@ async function autoClue(tools: ActionTools, game: Row<Game>, players: Row<Player
       botAssignment(tools, game, playerId),
       queryRows<Clue>(tools, 'clues', { gameId: game.id, round: g.round }),
     ])
-    // A bot Detective uses its scan on its first clue turn.
-    if (mine && mine.data.shownRole === 'detective' && !mine.data.scanResult) {
-      await botScan(tools, game, players, mine)
-    }
-    text = await botClue(tools, {
-      name: seat.data.alias,
-      personality: seat.data.personality || 'cautious',
-      word: mine?.data.word ?? '',
-      location,
-      cluesSoFar: clues.map((c) => c.data.text).filter((t) => t !== '…'),
-    })
+    const cluesSoFar = clues.map((c) => c.data.text).filter((t) => t !== '…')
+    const word = mine?.data.word ?? ''
+    text = AI_ON
+      ? await botClue(tools, { name: seat.data.alias, personality: seat.data.personality || 'cautious', word, location, cluesSoFar })
+      : ruleClue(word, cluesSoFar, Math.random)
+    if (clueLeaksWord(text, word)) text = ruleClue(word, [...cluesSoFar, text], Math.random)
   }
   await tools.create('clues', { gameId: game.id, round: g.round, turn: g.turnIndex, playerId, text })
   await advanceTurn(tools, game)
   return ok({})
-}
-
-/** Bot Detective: scan a random other player; the answer goes into the bot's own row only. */
-async function botScan(tools: ActionTools, game: Row<Game>, players: Row<Player>[], mine: Row<Assignment>) {
-  if (!(await takeLock(tools, `${game.id}:${game.data.round}:scan`))) return
-  const secret = await getSecret(tools, game.id, game.data.round)
-  const target = pick(players.filter((p) => p.data.userId !== mine.data.ownerId)).data.userId
-  await tools.update('assignments', mine.id, {
-    scanTargetId: target,
-    scanResult: target === secret?.villainId ? 'villain' : 'hero',
-  })
 }
 
 // ── Discussion & voting ─────────────────────────────────────────────────────
@@ -483,31 +491,18 @@ async function startVote(tools: ActionTools, game: Row<Game>, players: Row<Playe
   if (!(await takeLock(tools, `${game.id}:${g.round}:vote`))) return fail('Vote already started.')
   await tools.update('games', game.id, { status: 'vote', phaseEndsAt: Date.now() + TIMERS.vote })
 
-  // AI players vote one at a time, each using only its own word (and scan, if Detective).
+  // AI players vote one at a time, each using only its own word.
   const location = getLocation(g.location) ?? LOCATIONS[0]
-  const clues = await queryRows<Clue>(tools, 'clues', { gameId: game.id, round: g.round })
+  const [clues, sus] = await Promise.all([
+    queryRows<Clue>(tools, 'clues', { gameId: game.id, round: g.round }),
+    queryRows<Sus>(tools, 'sus', { gameId: game.id, round: g.round }),
+  ])
   for (const bot of players.filter((p) => p.data.isBot)) {
     const mine = await botAssignment(tools, game, bot.data.userId)
-    let candidates = players
-      .filter((p) => p.data.userId !== bot.data.userId)
-      .map((p) => ({
-        id: p.data.userId,
-        alias: p.data.alias,
-        clues: clues.filter((c) => c.data.playerId === p.data.userId).map((c) => c.data.text),
-      }))
-    let targetId: string | null = null
-    if (mine?.data.scanResult === 'villain') targetId = mine.data.scanTargetId
-    else if (mine?.data.scanResult === 'hero') candidates = candidates.filter((c) => c.id !== mine.data.scanTargetId)
-    if (!targetId && candidates.length) {
-      targetId = await botVote(tools, {
-        name: bot.data.alias,
-        personality: bot.data.personality || 'cautious',
-        word: mine?.data.word ?? '',
-        location,
-        candidates,
-      })
-    }
-    if (targetId) await recordVote(tools, game, players, bot.data.userId, targetId)
+    const cands = candidatesFor(bot.data.userId, players, clues, sus)
+    if (!cands.length) continue
+    const targetId = await botPick(tools, bot, mine?.data.word ?? '', mine?.data.shownRole === 'villain', cands, location)
+    await recordVote(tools, game, players, bot.data.userId, targetId)
   }
   return ok({})
 }
@@ -569,15 +564,13 @@ async function resolveVotes(tools: ActionTools, game: Row<Game>, players: Row<Pl
   if (!secret) return fail('Round data missing.')
   const { accusedId } = tallyVotes(votes)
 
-  if (accusedId === secret.villainId && g.mode === 'blind') {
-    // Caught — but the blind villain gets one last guess at the heroes' word.
+  if (accusedId === secret.villainId) {
+    // Caught, but the Glitch gets one last guess at the heroes' word.
     if (isBotId(secret.villainId)) {
       const location = getLocation(g.location) ?? LOCATIONS[0]
       const clues = await queryRows<Clue>(tools, 'clues', { gameId: game.id, round: g.round })
-      const guess = await botLastGuess(tools, {
-        location,
-        clues: clues.filter((c) => c.data.playerId !== secret.villainId).map((c) => c.data.text),
-      })
+      const heroClues = clues.filter((c) => c.data.playerId !== secret.villainId).map((c) => c.data.text)
+      const guess = AI_ON ? await botLastGuess(tools, { location, clues: heroClues }) : ruleGuess(heroClues, Math.random)
       return finalize(tools, game, players, guess)
     }
     await tools.update('games', game.id, { status: 'lastguess', phaseEndsAt: Date.now() + TIMERS.lastGuess })
@@ -625,7 +618,7 @@ async function finalize(
   let winner: RoundResult['winner'] = 'villain'
   let reason: RoundResult['reason'] = 'escaped'
   if (accusedId === secret.villainId) {
-    const stole = g.mode === 'blind' && guess !== null && normalizeWord(guess) === normalizeWord(secret.wordA)
+    const stole = guess !== null && normalizeWord(guess) === normalizeWord(secret.wordA)
     winner = stole ? 'villain' : 'heroes'
     reason = stole ? 'stole' : 'caught'
   }
@@ -643,9 +636,7 @@ async function finalize(
 
   const result: RoundResult = {
     villainId: secret.villainId,
-    detectiveId: secret.detectiveId || null,
     wordA: secret.wordA,
-    wordB: g.mode === 'blind' ? '' : secret.wordB,
     accusedId,
     winner,
     reason,
@@ -674,7 +665,6 @@ async function updateStats(
   pts: number,
 ) {
   const isVillain = userId === secret.villainId
-  const isDetective = userId === secret.detectiveId
   const heroesWon = winner === 'heroes'
   const existing = (await queryRows<Stats>(tools, 'stats', { userId }, 1))[0]
   const s: Stats = existing?.data ?? {
@@ -685,8 +675,6 @@ async function updateStats(
     heroWins: 0,
     villainGames: 0,
     villainWins: 0,
-    detectiveGames: 0,
-    detectiveWins: 0,
     votesCast: 0,
     votesCorrect: 0,
     points: 0,
@@ -698,8 +686,6 @@ async function updateStats(
     heroWins: s.heroWins + (!isVillain && heroesWon ? 1 : 0),
     villainGames: s.villainGames + (isVillain ? 1 : 0),
     villainWins: s.villainWins + (isVillain && !heroesWon ? 1 : 0),
-    detectiveGames: s.detectiveGames + (isDetective ? 1 : 0),
-    detectiveWins: s.detectiveWins + (isDetective && heroesWon ? 1 : 0),
     votesCast: s.votesCast + (votedFor ? 1 : 0),
     votesCorrect: s.votesCorrect + (votedFor === secret.villainId ? 1 : 0),
     points: s.points + pts,
@@ -715,6 +701,40 @@ async function updateStats(
  * re-checks its own clock, then performs whatever the expired phase needs.
  * Safe to call many times at once — locks make each transition happen once.
  */
+/**
+ * Called by a client right after it posts a chat line. If the line mentions an
+ * AI player by name during discussion, that bot replies once (lock per message
+ * and bot; still capped at 3 lines per bot per round by botSay).
+ * Params: gameId, chatId.
+ */
+const chatPing = action(async (ctx) => {
+  const s = await loadSeated(ctx)
+  if (!s.ok) return s.error
+  const { gameId, game, players } = s
+  if (game.data.status !== 'discuss') return ok({ replies: 0 })
+  const chatId = str(ctx.params.chatId)
+  const got = await ctx.tools.get<Chat & Record<string, unknown>>('chats', chatId)
+  if (!got.success) return fail('Message not found.')
+  const msg = got.data.record
+  if (msg.createdBy !== ctx.userId || msg.data.gameId !== gameId || msg.data.round !== game.data.round || msg.data.speakerId) return ok({ replies: 0 })
+  const text = msg.data.text.toLowerCase()
+  const bots = players.filter((p) => p.data.isBot && text.includes(p.data.alias.toLowerCase()))
+  const [clues, sus] = await Promise.all([
+    queryRows<Clue>(ctx.tools, 'clues', { gameId, round: game.data.round }),
+    queryRows<Sus>(ctx.tools, 'sus', { gameId, round: game.data.round }),
+  ])
+  let replies = 0
+  for (const bot of bots) {
+    if (!(await takeLock(ctx.tools, `${gameId}:reply:${chatId}:${bot.data.userId}`))) continue
+    const mine = await botAssignment(ctx.tools, game, bot.data.userId)
+    const cands = candidatesFor(bot.data.userId, players, clues, sus)
+    const targetId = cands.length ? rulePick(mine?.data.shownRole === 'villain' ? '' : (mine?.data.word ?? ''), cands, Math.random) : null
+    const alias = cands.find((c) => c.id === targetId)?.alias ?? null
+    if (await botSay(ctx.tools, game, bot.data.userId, ruleReply(bot.data.personality || 'cautious', alias, Math.random))) replies++
+  }
+  return ok({ replies })
+})
+
 const advance = action(async (ctx) => {
   const s = await loadSeated(ctx)
   if (!s.ok) return s.error
@@ -738,30 +758,6 @@ const advance = action(async (ctx) => {
   }
 })
 
-// ── Detective scan ──────────────────────────────────────────────────────────
-
-/**
- * Once per round the Detective scans one player. The answer is written only to
- * the Detective's own (read: 'own') assignment row, so no other browser gets it.
- */
-const scan = action(async (ctx) => {
-  const s = await loadSeated(ctx)
-  if (!s.ok) return s.error
-  const { gameId, game, players } = s
-  const g = game.data
-  if (g.mode !== 'detective') return fail('No detective in this mode.')
-  if (g.status !== 'clues' && g.status !== 'discuss') return fail('You can scan during clues or discussion.')
-  const secret = await getSecret(ctx.tools, gameId, g.round)
-  if (!secret || secret.detectiveId !== ctx.userId) return fail('Only the Detective can scan.')
-  const targetId = str(ctx.params.targetId)
-  if (targetId === ctx.userId || !players.some((p) => p.data.userId === targetId)) return fail('Pick another player.')
-  if (!(await takeLock(ctx.tools, `${gameId}:${g.round}:scan`))) return fail('You already used your scan.')
-
-  const scanResult = targetId === secret.villainId ? 'villain' : 'hero'
-  const mine = await queryRows<Assignment>(ctx.tools, 'assignments', { gameId, round: g.round, ownerId: ctx.userId }, 1)
-  if (mine[0]) await ctx.tools.update('assignments', mine[0].id, { scanTargetId: targetId, scanResult })
-  return ok({ scanResult })
-})
 
 // ── Narrator ────────────────────────────────────────────────────────────────
 
@@ -774,6 +770,8 @@ const narrate = action(async (ctx) => {
   if (!s.ok) return s.error
   const { gameId, game, players } = s
   const g = game.data
+  // Paid voice only when AI_ENABLED; otherwise the browser speaks the line itself.
+  if (!AI_ON) return fail('AI narrator is off.')
   if (g.status !== 'reveal' || !g.result) return fail('Nothing to narrate yet.')
   if (!(await takeLock(ctx.tools, `${gameId}:${g.round}:narrate:${ctx.userId}`))) return fail('Already narrated.')
 
@@ -781,15 +779,11 @@ const narrate = action(async (ctx) => {
   const alias = (id: string | null) => players.find((p) => p.data.userId === id)?.data.alias ?? 'no one'
   let text: string
   if (r.reason === 'caught') {
-    text = `Round ${g.round} is over. The Glitch was ${alias(r.villainId)}! The heroes' word was ${r.wordA}${
-      r.wordB ? `, and the Glitch's word was ${r.wordB}` : ''
-    }. Echo City is safe... for tonight.`
+    text = `Round ${g.round} is over. The Glitch was ${alias(r.villainId)}! The heroes' word was ${r.wordA}. Echo City is safe... for tonight.`
   } else if (r.reason === 'stole') {
     text = `The heroes unmasked ${alias(r.villainId)}... but the Glitch guessed the word, ${r.wordA}! The Glitch steals the night.`
   } else {
-    text = `The heroes accused ${alias(r.accusedId)}. But the real Glitch was ${alias(r.villainId)}${
-      r.wordB ? `, hiding behind the word ${r.wordB}` : ''
-    }. Darkness falls on Echo City.`
+    text = `The heroes accused ${alias(r.accusedId)}. But the real Glitch was ${alias(r.villainId)}. Darkness falls on Echo City.`
   }
   const audio = await narrateSpeech(ctx.tools, text)
   return ok({ audio })
@@ -808,6 +802,6 @@ export const gameActions: Record<string, ActionHandler<Env>> = {
   castVote,
   lastGuess,
   advance,
-  scan,
   narrate,
+  chatPing,
 }

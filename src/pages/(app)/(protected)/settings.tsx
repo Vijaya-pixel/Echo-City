@@ -31,7 +31,10 @@ export default function SettingsPage() {
             </div>
           </dl>
 
-          <Button variant="secondary" className="mt-6" onClick={() => signOut()}>
+          <Button variant="secondary" className="mt-6" onClick={() => {
+            if (import.meta.env.DEV) sessionStorage.setItem('echocity:dev-signed-out', '1')
+            void signOut()
+          }}>
             Sign out
           </Button>
         </section>

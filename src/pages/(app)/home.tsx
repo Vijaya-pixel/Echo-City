@@ -30,9 +30,11 @@ export default function HomePage() {
         </header>
 
         {!isLoaded ? null : !isSignedIn ? (
-          <section className="px-panel max-w-md p-6">
-            <h2 className="text-xs text-foreground">SIGN IN TO SUIT UP</h2>
-            <p className="mt-3 text-muted-foreground">You need an account to create or join a room and to keep your stats.</p>
+          <section className="px-panel px-panel-hero max-w-md p-6">
+            <h2 className="text-sm text-foreground">SIGN IN TO PLAY</h2>
+            <p className="mt-3 text-muted-foreground">
+              Sign in with Google or GitHub to create or join a room. It takes a few seconds, and it keeps your stats.
+            </p>
             <Button className="mt-6 w-full" onClick={() => setShowAuth(true)}>
               Sign in
             </Button>

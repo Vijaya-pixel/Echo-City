@@ -7,11 +7,12 @@
  * stored in permission-protected rows (see src/schemas/game-schemas.ts).
  */
 
-export type Mode = 'classic' | 'blind' | 'detective'
+/** One ruleset. Kept as a type so the stored `mode` field stays explicit. */
+export type Mode = 'nightshift'
 export type Difficulty = 'rookie' | 'hero' | 'legend'
 export type GameStatus = 'lobby' | 'draw' | 'clues' | 'discuss' | 'vote' | 'lastguess' | 'reveal'
 
-/** A word pair: heroes get `a`, the villain gets `b` (classic/detective). */
+/** Two related words; each round the heroes get one of them (the Glitch gets none). */
 export type WordPair = [string, string]
 
 export interface Location {
@@ -64,21 +65,10 @@ export function getLocation(id: string | null | undefined): Location | undefined
 
 // ── Modes & difficulty labels (UI copy) ─────────────────────────────────────
 
-export const MODES: Record<Mode, { label: string; tag: string; blurb: string }> = {
-  classic: {
-    label: 'Battleworld',
-    tag: 'Classic',
-    blurb: 'The villain gets a close decoy word and does not know they are the villain.',
-  },
-  blind: {
-    label: 'Shadow Protocol',
-    tag: 'Blind villain',
-    blurb: 'The villain only knows the location. If caught, one last guess can steal the win.',
-  },
-  detective: {
-    label: 'Detective',
-    tag: 'Scan one',
-    blurb: 'One hero secretly gets a single scan: villain or hero?',
+export const MODES: Record<Mode, { label: string; blurb: string }> = {
+  nightshift: {
+    label: 'Night Shift',
+    blurb: 'Everyone shares a secret word except the Glitch, who knows they are the Glitch and has no word.',
   },
 }
 
@@ -125,16 +115,18 @@ export const PERSONALITY_PROMPTS: Record<Personality, string> = {
   bold: 'You are bold: give sharp, specific clues and accuse confidently, even on a hunch.',
 }
 
+// Neutral, original word parts. Deliberately avoids prefixes/nouns that combine
+// into existing comic-book names (e.g. no Captain/Doctor/Iron, no Nova/Raven/Falcon).
 const ALIAS_PREFIX = [
-  'Captain', 'Doctor', 'Agent', 'Lady', 'Night', 'Iron', 'Silver', 'Crimson',
-  'Atomic', 'Quantum', 'Shadow', 'Thunder', 'Star', 'Neon', 'Mega', 'Professor',
+  'Neon', 'Chrome', 'Cobalt', 'Static', 'Velvet', 'Pixel', 'Turbo', 'Lunar',
+  'Copper', 'Glass', 'Solar', 'Hollow', 'Rapid', 'Violet', 'Ghost', 'Mono',
 ]
 const ALIAS_NOUN = [
-  'Nova', 'Comet', 'Falcon', 'Volt', 'Blaze', 'Echo', 'Spark', 'Tempest',
-  'Frost', 'Orbit', 'Pulse', 'Vortex', 'Raven', 'Titan', 'Ember', 'Flux',
+  'Signal', 'Circuit', 'Drift', 'Glyph', 'Lumen', 'Relay', 'Cipher', 'Vector',
+  'Sprocket', 'Halo', 'Kilowatt', 'Lantern', 'Meteor', 'Prism', 'Rook', 'Wren',
 ]
 
-/** Random alias like "Captain Nova", avoiding ones already taken in the room. */
+/** Random alias like "Cobalt Relay", avoiding ones already taken in the room. */
 export function makeAlias(taken: string[]): string {
   for (let i = 0; i < 50; i++) {
     const alias = `${pick(ALIAS_PREFIX)} ${pick(ALIAS_NOUN)}`
