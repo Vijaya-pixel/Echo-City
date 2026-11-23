@@ -20,7 +20,9 @@ import { Button } from '@/components/ui'
 
 export default function ProtectedLayout() {
   return (
-    <AuthGate fallback={<SignedOutPanel />}>
+    // Signing out on a protected page lands on HQ's sign-in prompt
+    // (the SDK default jumps to the static homepage, which felt broken).
+    <AuthGate fallback={<SignedOutPanel />} redirectOnSignOut="/home">
       <Outlet />
     </AuthGate>
   )
