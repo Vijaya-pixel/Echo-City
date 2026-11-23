@@ -148,21 +148,28 @@ export function ruleGuess(clues: string[], rnd: () => number): string {
   return cap(best[Math.floor(rnd() * best.length)] ?? 'Neon')
 }
 
+// Grammar helpers so lines also read right when the target is the guest ("You").
+const isYou = (t: string) => t === 'You'
+const subj = (t: string) => (isYou(t) ? 'you' : t)
+const poss = (t: string) => (isYou(t) ? 'your' : `${t}'s`)
+const is = (t: string) => (isYou(t) ? 'you are' : `${t} is`)
+const upper = (x: string) => x.charAt(0).toUpperCase() + x.slice(1)
+
 const OPENERS: Record<Personality, Array<(target: string) => string>> = {
   cautious: [
-    (t) => `Hmm, ${t}'s clue didn't quite fit for me.`,
-    (t) => `Not sure yet... ${t} felt a little off?`,
-    (t) => `I might be wrong, but I'm watching ${t}.`,
+    (t) => `Hmm, ${poss(t)} clue didn't quite fit for me.`,
+    (t) => `Not sure yet... ${isYou(t) ? 'your clue' : t} felt a little off?`,
+    (t) => `I might be wrong, but I'm watching ${subj(t)}.`,
   ],
   chatty: [
-    (t) => `Okay okay, everyone look at ${t}'s clue for a second.`,
-    (t) => `I'm getting weird vibes from ${t}, honestly.`,
-    (t) => `Am I the only one who thinks ${t} is bluffing?`,
+    (t) => `Okay okay, everyone look at ${poss(t)} clue for a second.`,
+    (t) => `I'm getting weird vibes from ${subj(t)}, honestly.`,
+    (t) => `Am I the only one who thinks ${is(t)} bluffing?`,
   ],
   bold: [
-    (t) => `It's ${t}. That clue made no sense.`,
-    (t) => `${t} is the Glitch. Calling it now.`,
-    (t) => `Vote ${t}. Easy.`,
+    (t) => `It's ${subj(t)}. That clue made no sense.`,
+    (t) => `${upper(is(t))} the Glitch. Calling it now.`,
+    (t) => `Vote ${subj(t)}. Easy.`,
   ],
 }
 
@@ -181,7 +188,8 @@ export function ruleOpener(personality: Personality, targetAlias: string, rnd: (
 /** A reply when a human mentions the bot: defend, then point at its suspect. */
 export function ruleReply(personality: Personality, targetAlias: string | null, rnd: () => number): string {
   const defense = (DEFENSES[personality] ?? DEFENSES.cautious)[Math.floor(rnd() * 2)]
-  return targetAlias ? `${defense} ${targetAlias} worries me more.` : defense
+  if (!targetAlias) return defense
+  return `${defense} ${isYou(targetAlias) ? 'Honestly, you worry' : `${targetAlias} worries`} me more.`
 }
 
 function cap(w: string): string {

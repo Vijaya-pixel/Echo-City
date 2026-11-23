@@ -31,3 +31,18 @@ describe('rule-based bots', () => {
     expect(normalizeWord(ruleGuess(['noodles', 'broth', 'chopsticks'], fixed))).toBe('ramen')
   })
 })
+
+import { ruleOpener, ruleReply } from './bots'
+describe('bot chat grammar', () => {
+  it('reads naturally when talking about the guest', () => {
+    for (let i = 0; i < 3; i++) {
+      const r = () => i / 3
+      for (const p of ['cautious', 'chatty', 'bold'] as const) {
+        const line = ruleOpener(p, 'You', r)
+        expect(line).not.toMatch(/You's|you's|You is|you is/)
+      }
+    }
+    expect(ruleReply('bold', 'You', () => 0)).toMatch(/you worry me more/)
+    expect(ruleReply('bold', 'Neon Relay', () => 0)).toMatch(/Neon Relay worries me more/)
+  })
+})

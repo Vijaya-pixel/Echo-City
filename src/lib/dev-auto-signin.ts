@@ -66,7 +66,10 @@ export function useDevAutoSignIn(): { pending: boolean; error: string | null } {
   const busy = useRef(false)
 
   const target = DEV_AUTO_SIGNIN ? desiredPlayer() : undefined
-  const wrongUser = !!(isSignedIn && email && target && email !== target.email)
+  // Only swap accounts when the URL explicitly asks for a dev player
+  // (?player=bob). Never replace a real login (e.g. your GitHub account).
+  const explicit = !!new URLSearchParams(window.location.search).get('player')
+  const wrongUser = !!(explicit && isSignedIn && email && target && email !== target.email)
   const pending = !!target && isLoaded && !error && (!isSignedIn || wrongUser)
 
   useEffect(() => {

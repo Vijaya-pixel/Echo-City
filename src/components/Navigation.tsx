@@ -8,9 +8,10 @@
  * email is the credential the session was opened with.
  */
 
+import { SignInOverlay } from '@/components/SignInOverlay'
 import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { AuthOverlay, useAuthProfileReady, signOut } from 'deepspace'
+import { useAuthProfileReady, signOut } from 'deepspace'
 import { ChevronDown, LogOut, Menu, X } from 'lucide-react'
 import { APP_NAME } from '../constants'
 import { Logo, TechnoText } from './Logo'
@@ -165,7 +166,7 @@ export default function Navigation() {
         )}
       </nav>
 
-      {showAuthModal && <AuthOverlay onClose={() => setShowAuthModal(false)} />}
+      {showAuthModal && <SignInOverlay onClose={() => setShowAuthModal(false)} />}
     </>
   )
 }

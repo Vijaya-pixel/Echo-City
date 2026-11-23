@@ -4,9 +4,10 @@
  * signed-out visitors still see the page and the nav's sign-in button.
  */
 
+import { SignInOverlay } from '@/components/SignInOverlay'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { AuthOverlay, useAuth } from 'deepspace'
+import { useAuth } from 'deepspace'
 import { Button, Input, useToast } from '@/components/ui'
 import { DIFFICULTIES, type Difficulty } from '@/game/data'
 import { callAction } from '@/lib/game-client'
@@ -38,7 +39,7 @@ export default function HomePage() {
             <Button className="mt-6 w-full" onClick={() => setShowAuth(true)}>
               Sign in
             </Button>
-            {showAuth && <AuthOverlay onClose={() => setShowAuth(false)} />}
+            {showAuth && <SignInOverlay onClose={() => setShowAuth(false)} />}
           </section>
         ) : (
           <div className="grid items-start gap-5 md:grid-cols-[3fr_2fr]">

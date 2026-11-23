@@ -99,9 +99,14 @@ export default function Landing() {
                 ))}
               </dl>
               {/* Signed-out visitors get the sign-in popup on arrival (see home.tsx). */}
-              <Link to="/home?signin=1" className="btn-arcade btn-lg inline-flex items-center justify-center !min-h-13 !pl-8 !pr-12 !text-sm">
-                Play now
-              </Link>
+              <div className="flex flex-col items-center gap-2 sm:items-end">
+                <Link to="/home?signin=1" className="btn-arcade btn-lg inline-flex items-center justify-center !min-h-13 !pl-8 !pr-12 !text-sm">
+                  Play now
+                </Link>
+                <Link to="/guest" className="text-sm text-muted-foreground hover:text-hero">
+                  or play as guest →
+                </Link>
+              </div>
             </div>
           </div>
         </section>
