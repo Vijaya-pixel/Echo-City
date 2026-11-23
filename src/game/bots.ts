@@ -19,7 +19,7 @@ export const HINTS: Record<string, string[]> = {
   billboard: ['advert', 'huge', 'poster', 'highway', 'glowing', 'slogan'],
   'water tower': ['tank', 'wooden', 'roof', 'tall', 'pipes', 'storage'],
   'neon sign': ['glow', 'pink', 'buzzing', 'tubes', 'open', 'shop'],
-  chimney: ['smoke', 'bricks', 'soot', 'roof', 'sweep', 'fireplace'],
+  chimney: ['smoke', 'bricks', 'soot', 'roof', 'sweep', 'fireplace', 'cooking'],
   'pizza box': ['cardboard', 'delivery', 'greasy', 'slice', 'square', 'cheese'],
   taxi: ['yellow', 'meter', 'fare', 'driver', 'hail', 'cab'],
   subway: ['tunnel', 'underground', 'tracks', 'platform', 'commute', 'rush'],

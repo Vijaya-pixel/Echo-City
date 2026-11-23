@@ -23,6 +23,12 @@ describe('rule-based bots', () => {
     expect(rulePick('Streetlight', [fits, odd], fixed)).toBe('b')
   })
 
+  it('does not flag cooking as a bad clue for a chimney', () => {
+    expect(suspicion('Chimney', { id: 'a', clues: ['Cooking'], sus: 0 })).toBe(
+      suspicion('Chimney', { id: 'b', clues: ['Smoke'], sus: 0 }),
+    )
+  })
+
   it('the Glitch bot deflects onto the most-suspected player', () => {
     expect(rulePick('', [{ id: 'a', clues: [], sus: 0 }, { id: 'b', clues: [], sus: 3 }], fixed)).toBe('b')
   })
