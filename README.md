@@ -84,17 +84,6 @@ npm run test:unit
 npm run build
 ```
 
-## Updating the live site
-
-Echo City is already live at https://echocity.app.space. After changing the code, publish a new release with:
-
-```sh
-git push
-npx deepspace deploy
-```
-
-Optional: to turn on the paid AI players and narrator, set `AI_ENABLED = "true"` for the app and redeploy.
-
 ## Known gaps / next steps
 
 - Smarter AI votes (they still split often, so heroes lose a lot)
